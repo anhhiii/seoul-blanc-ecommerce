@@ -146,4 +146,3 @@ cd backend && npm run build
 # Phía Frontend
 cd ../frontend && npm run lint && npm run build
 ```
-*(Nếu hiển thị báo cáo thành công 100%, bạn có thể tiến hành commit và push mã nguồn lên nhánh chính).*
