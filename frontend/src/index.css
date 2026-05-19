@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Outfit', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  --color-brand-50: #FBF9F6;
+  --color-brand-100: #F7F3EE;
+  --color-brand-200: #EAE3DB;
+  --color-brand-300: #D4C9BC;
+  --color-brand-400: #C4B7A6;
+  --color-brand-500: #A89888;
+  --color-brand-600: #8A8481;
+  --color-brand-700: #5E5956;
+  --color-brand-800: #3D3A38;
+  --color-brand-900: #2C2A29;
+  --color-brand-950: #1A1918;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-brand-100);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-brand-300);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand-400);
+}
+
+/* Selection color */
+::selection {
+  background-color: var(--color-brand-200);
+  color: var(--color-brand-900);
+}
