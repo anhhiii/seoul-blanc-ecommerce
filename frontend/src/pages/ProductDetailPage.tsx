@@ -1,0 +1,401 @@
+import React, { useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { AlertTriangle, ChevronRight, ShoppingBag, ArrowLeft, ShieldCheck, HelpCircle, ChevronLeft, Minus, Plus } from 'lucide-react';
+import { useProduct } from '../features/product/hooks/useProduct.js';
+import type { ColorType, SizeType, ProductVariant, Product } from '../features/product/types/index.js';
+
+export const ProductDetailPage: React.FC = () => {
+  const { idOrSlug } = useParams<{ idOrSlug: string }>();
+  const { useGetProduct, useGetProducts } = useProduct();
+
+  // Fetch product detail query
+  const { data: response, isLoading, isError } = useGetProduct(idOrSlug || '');
+  const product = response?.data?.product;
+
+  // Fetch related products query
+  const { data: relatedResponse } = useGetProducts({ 
+    categoryId: product?.categoryId, 
+    limit: 5 
+  });
+  const relatedProducts = (relatedResponse?.data?.products || [])
+    .filter((p: Product) => p.id !== product?.id)
+    .slice(0, 4);
+
+  // Selected Variant states
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedColor, setSelectedColor] = useState<ColorType | null>(null);
+  const [selectedSize, setSelectedSize] = useState<SizeType | null>(null);
+
+  const displayImage = selectedImage || product?.thumbnail || '';
+  const activeColor = selectedColor || product?.variants?.[0]?.color || null;
+  const activeSize = selectedSize || product?.variants?.[0]?.size || null;
+
+  const [quantity, setQuantity] = useState(1);
+
+  // Extract unique colors and sizes available for this product
+  const availableColors = product
+    ? Array.from(new Set(product.variants.map((v: ProductVariant) => v.color)))
+    : [];
+
+  const availableSizes = product
+    ? Array.from(new Set(product.variants.map((v: ProductVariant) => v.size)))
+    : [];
+
+  // Find stock matching selected color and size
+  const activeVariant = product?.variants.find(
+    (v: ProductVariant) => v.color === activeColor && v.size === activeSize
+  );
+  const stockInfo = activeVariant ? activeVariant.stock : 0;
+
+  // Derive final quantity to avoid cascading render effects
+  const actualQuantity = stockInfo === 0 ? 1 : Math.min(quantity, stockInfo);
+
+  const handleDecreaseQuantity = () => {
+    if (actualQuantity > 1) setQuantity(actualQuantity - 1);
+  };
+
+  const handleIncreaseQuantity = () => {
+    if (actualQuantity < stockInfo) setQuantity(actualQuantity + 1);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs text-brand-400 font-light">Đang tải thông tin sản phẩm...</p>
+      </div>
+    );
+  }
+
+  if (isError || !product) {
+    return (
+      <div className="min-h-screen bg-[#FAF8F5] py-12">
+        <div className="max-w-md mx-auto text-center bg-white p-8 rounded-2xl border border-brand-200/30 shadow-sm space-y-4">
+          <AlertTriangle className="text-red-500 mx-auto" size={36} />
+          <h2 className="text-sm font-semibold text-brand-900">Không tìm thấy sản phẩm</h2>
+          <p className="text-xs text-brand-500 font-light">
+            Sản phẩm bạn đang tìm kiếm không tồn tại hoặc đã bị ẩn khỏi cửa hàng.
+          </p>
+          <Link
+            to="/products"
+            className="inline-flex items-center gap-2 text-xs bg-brand-900 text-white font-semibold px-4 py-2.5 rounded-lg"
+          >
+            <ArrowLeft size={12} />
+            Quay lại cửa hàng
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Gallery list (main thumbnail + album images)
+  const albumImages = [product.thumbnail, ...product.images];
+
+  const handlePrevImage = () => {
+    const currentIndex = albumImages.indexOf(displayImage);
+    const prevIndex = (currentIndex - 1 + albumImages.length) % albumImages.length;
+    setSelectedImage(albumImages[prevIndex]);
+  };
+
+  const handleNextImage = () => {
+    const currentIndex = albumImages.indexOf(displayImage);
+    const nextIndex = (currentIndex + 1) % albumImages.length;
+    setSelectedImage(albumImages[nextIndex]);
+  };
+
+  return (
+    <div className="bg-[#FAF8F5] min-h-screen py-10">
+      <div className="max-w-7xl mx-auto px-6 sm:px-8">
+        
+        {/* Navigation Breadcrumb */}
+        <div className="text-[10px] uppercase tracking-widest text-brand-500 font-medium mb-8 flex items-center gap-1.5">
+          <Link to="/" className="hover:text-brand-900 transition-colors">Trang chủ</Link>
+          <ChevronRight size={10} className="text-brand-300" />
+          <Link to="/products" className="hover:text-brand-900 transition-colors">Sản phẩm</Link>
+          <ChevronRight size={10} className="text-brand-300" />
+          <span className="text-brand-900 font-semibold truncate max-w-xs">{product.name}</span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 bg-white rounded-3xl border border-brand-200/20 p-6 sm:p-8 shadow-xs">
+          
+          {/* ================= LEFT COLUMN: IMAGES GALLERY ================= */}
+          <div className="lg:col-span-6 space-y-4">
+            {/* Big active display image */}
+            <div className="relative aspect-[3/4] rounded-2xl overflow-hidden border border-brand-200/50 bg-brand-50 group">
+              <img
+                src={displayImage}
+                alt={product.name}
+                className="w-full h-full object-cover object-center"
+              />
+              
+              {/* Image Navigation Buttons */}
+              {albumImages.length > 1 && (
+                <>
+                  <button 
+                    onClick={handlePrevImage}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur rounded-full shadow border border-brand-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer hover:bg-white"
+                  >
+                    <ChevronLeft size={20} className="text-brand-700" />
+                  </button>
+                  <button 
+                    onClick={handleNextImage}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur rounded-full shadow border border-brand-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer hover:bg-white"
+                  >
+                    <ChevronRight size={20} className="text-brand-700" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Thumbnails grid */}
+            <div className="flex gap-3 overflow-x-auto pb-1 select-none">
+              {albumImages.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedImage(img)}
+                  className={`w-20 aspect-[3/4] rounded-xl overflow-hidden bg-brand-50 border transition-all flex-shrink-0 cursor-pointer ${
+                    displayImage === img ? 'border-brand-900 scale-98 shadow-sm' : 'border-brand-200/40 opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <img src={img} alt="Thumbnail view" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ================= RIGHT COLUMN: PRODUCT META & ORDERING ================= */}
+          <div className="lg:col-span-6 space-y-6">
+            
+            {/* Title & Brand */}
+            <div>
+              <span className="inline-block text-[10px] uppercase tracking-widest text-brand-500 bg-brand-50 border border-brand-200/50 px-2.5 py-1 rounded-md font-semibold mb-3">
+                {product.categoryName || 'SEOUL BLANC'}
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-light text-brand-900 tracking-wide leading-tight">
+                {product.name}
+              </h1>
+              
+              <div className="flex items-center gap-4 mt-3 text-xs text-brand-500 font-light">
+                <span className="flex items-center gap-1.5 font-medium"><ShoppingBag size={14} /> Đã bán {product.sold || 0}</span>
+                <span className="w-1 h-1 rounded-full bg-brand-200"></span>
+                <span className="flex items-center gap-1.5"><AlertTriangle size={14} /> Đánh giá {product.ratingAverage || 0} ({product.totalReviews || 0})</span>
+              </div>
+            </div>
+
+            {/* Pricing Section */}
+            <div className="flex items-baseline gap-3 border-y border-brand-100 py-4">
+              <span className="text-2xl font-bold text-brand-900">
+                {(product.discountPrice || product.price).toLocaleString('vi-VN')}₫
+              </span>
+              {product.discountPrice && (
+                <span className="text-sm text-brand-400 line-through">
+                  {product.price.toLocaleString('vi-VN')}₫
+                </span>
+              )}
+            </div>
+
+            {/* Select Color Variant */}
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-bold text-brand-800 uppercase tracking-wider">
+                Màu sắc: <span className="font-semibold text-brand-900">{activeColor || 'Chưa chọn'}</span>
+              </h4>
+              <div className="flex flex-wrap gap-2.5">
+                {availableColors.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setSelectedColor(color)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold tracking-wider transition-all border cursor-pointer ${
+                      activeColor === color
+                        ? 'border-brand-900 bg-brand-900 text-white shadow-xs'
+                        : 'border-brand-200/60 bg-white text-brand-700 hover:border-brand-400'
+                    }`}
+                  >
+                    {color}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Select Size Variant */}
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-bold text-brand-800 uppercase tracking-wider">
+                Kích thước: <span className="font-semibold text-brand-900">{activeSize || 'Chưa chọn'}</span>
+              </h4>
+              <div className="flex flex-wrap gap-2.5">
+                {availableSizes.map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setSelectedSize(size)}
+                    className={`w-12 py-2 rounded-xl text-xs font-semibold transition-all border cursor-pointer ${
+                      activeSize === size
+                        ? 'border-brand-900 bg-brand-900 text-white shadow-xs'
+                        : 'border-brand-200/60 bg-white text-brand-700 hover:border-brand-400'
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Stock details */}
+            <div className="text-xs text-brand-500 font-light flex items-center gap-1.5 bg-brand-50/50 p-3 rounded-xl border border-brand-100/50">
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" />
+              <span>
+                Trạng thái: {' '}
+                <strong className="font-semibold text-brand-900">
+                  {stockInfo > 0
+                    ? `Còn ${stockInfo} sản phẩm trong kho`
+                    : 'Hết hàng'}
+                </strong>
+              </span>
+            </div>
+
+            {/* Select Quantity & Call to Actions */}
+            <div className="pt-2 flex flex-col gap-4">
+              {/* Quantity Selector */}
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] font-bold text-brand-800 uppercase tracking-wider">Số lượng:</span>
+                <div className="flex items-center border border-brand-200 rounded-lg overflow-hidden h-10">
+                  <button 
+                    onClick={handleDecreaseQuantity}
+                    disabled={actualQuantity <= 1 || stockInfo <= 0}
+                    className="w-10 h-full flex items-center justify-center bg-brand-50 hover:bg-brand-100 text-brand-700 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <Minus size={14} />
+                  </button>
+                  <span className="w-12 text-center text-sm font-semibold text-brand-900">{actualQuantity}</span>
+                  <button 
+                    onClick={handleIncreaseQuantity}
+                    disabled={actualQuantity >= stockInfo || stockInfo <= 0}
+                    className="w-10 h-full flex items-center justify-center bg-brand-50 hover:bg-brand-100 text-brand-700 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  disabled={stockInfo <= 0}
+                  className="flex-1 py-4 bg-white border border-brand-900 text-brand-900 hover:bg-brand-50/40 text-xs font-bold uppercase tracking-widest rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  <ShoppingBag size={14} />
+                  Thêm vào giỏ hàng
+                </button>
+                
+                <button
+                  disabled={stockInfo <= 0}
+                  className="flex-1 py-4 bg-brand-900 hover:bg-brand-850 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  Mua ngay
+                </button>
+              </div>
+            </div>
+
+            {/* Product description & Fabric details */}
+            <div className="border-t border-brand-150 pt-6 space-y-4">
+              <div>
+                <h4 className="text-[10px] font-bold text-brand-800 uppercase tracking-wider mb-2">Thông tin sản phẩm</h4>
+                <p className="text-xs text-brand-600 font-light leading-relaxed whitespace-pre-line">
+                  {product.description}
+                </p>
+              </div>
+
+              {/* Product specifications */}
+              <div className="grid grid-cols-2 gap-4 text-xs font-light bg-brand-50/40 p-4 rounded-2xl border border-brand-100/50">
+                {product.material && (
+                  <div>
+                    <span className="text-brand-400">Chất liệu:</span>{' '}
+                    <strong className="font-medium text-brand-800">{product.material}</strong>
+                  </div>
+                )}
+                {product.fit && (
+                  <div>
+                    <span className="text-brand-400">Form dáng:</span>{' '}
+                    <strong className="font-medium text-brand-800">{product.fit}</strong>
+                  </div>
+                )}
+                {product.style && (
+                  <div>
+                    <span className="text-brand-400">Phong cách:</span>{' '}
+                    <strong className="font-medium text-brand-800">{product.style}</strong>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Brand benefits */}
+            <div className="grid grid-cols-2 gap-3 pt-2 text-[10px] text-brand-500 font-light">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="text-brand-500" size={14} />
+                <span>100% chính hãng</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <HelpCircle className="text-brand-500" size={14} />
+                <span>Hỗ trợ đổi size 30 ngày</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* ========== RELATED PRODUCTS ========== */}
+        {relatedProducts.length > 0 && (
+          <div className="mt-16 sm:mt-24 border-t border-brand-200/50 pt-16">
+            <div className="text-center mb-10">
+              <span className="text-[10px] uppercase tracking-[0.3em] text-brand-600 font-medium">CÙNG DANH MỤC</span>
+              <h2 className="text-2xl sm:text-3xl font-light text-brand-900 tracking-wider mt-2">
+                Sản phẩm <span className="font-semibold">tương tự</span>
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              {relatedProducts.map((relatedProd: Product) => (
+                <Link
+                  key={relatedProd.id}
+                  to={`/products/${relatedProd.slug}`}
+                  className="group flex flex-col bg-white rounded-3xl overflow-hidden border border-brand-100 hover:border-brand-300 hover:shadow-lg transition-all duration-300"
+                >
+                  <div className="relative aspect-[3/4] bg-brand-50 overflow-hidden">
+                    <img
+                      src={relatedProd.thumbnail}
+                      alt={relatedProd.name}
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700"
+                    />
+                    {relatedProd.discountPrice && (
+                      <div className="absolute top-4 left-4 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded tracking-wider z-10">
+                        SALE
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="p-5 flex flex-col flex-1">
+                    <span className="text-[10px] uppercase tracking-widest text-brand-500 mb-1">
+                      {relatedProd.categoryName || 'Sản phẩm'}
+                    </span>
+                    <h3 className="text-sm font-semibold text-brand-900 line-clamp-2 mb-2 group-hover:text-brand-600 transition-colors">
+                      {relatedProd.name}
+                    </h3>
+                    <div className="mt-auto flex items-center gap-2">
+                      <span className="font-bold text-brand-900">
+                        {(relatedProd.discountPrice || relatedProd.price).toLocaleString('vi-VN')}₫
+                      </span>
+                      {relatedProd.discountPrice && (
+                        <span className="text-xs text-brand-400 line-through">
+                          {relatedProd.price.toLocaleString('vi-VN')}₫
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ProductDetailPage;

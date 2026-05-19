@@ -13,6 +13,11 @@ import { RegisterPage } from '../pages/auth/RegisterPage.js';
 import { VerifyOTPPage } from '../pages/auth/VerifyOTPPage.js';
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage.js';
 import { ResetPasswordPage } from '../pages/auth/ResetPasswordPage.js';
+import { CategoryManagementPage } from '../pages/admin/CategoryManagementPage.js';
+import { ProductManagementPage } from '../pages/admin/ProductManagementPage.js';
+import { ProductsPage } from '../pages/ProductsPage.js';
+import { ProductDetailPage } from '../pages/ProductDetailPage.js';
+import { CategoriesPage } from '../pages/CategoriesPage.js';
 
 // Guards
 import { ProtectedRoute } from '../shared/components/ProtectedRoute.js';
@@ -23,7 +28,9 @@ export const AppRoutes: React.FC = () => {
       {/* ===== Public Routes with MainLayout (Header + Footer) ===== */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<HomePage />} />
-        {/* Future: /products, /products/:slug, /categories, /about, /cart, etc. */}
+        <Route path="/products" element={<ProductsPage />} />
+        <Route path="/products/:idOrSlug" element={<ProductDetailPage />} />
+        <Route path="/categories" element={<CategoriesPage />} />
       </Route>
 
       {/* ===== Auth Routes with AuthLayout (Split banner) ===== */}
@@ -44,8 +51,8 @@ export const AppRoutes: React.FC = () => {
         }
       >
         <Route path="/admin" element={<div className="text-sm text-gray-600">Admin Dashboard - Coming soon</div>} />
-        <Route path="/admin/products" element={<div className="text-sm text-gray-600">Quản lý sản phẩm - Coming soon</div>} />
-        <Route path="/admin/categories" element={<div className="text-sm text-gray-600">Quản lý danh mục - Coming soon</div>} />
+        <Route path="/admin/products" element={<ProductManagementPage />} />
+        <Route path="/admin/categories" element={<CategoryManagementPage />} />
         <Route path="/admin/orders" element={<div className="text-sm text-gray-600">Quản lý đơn hàng - Coming soon</div>} />
         <Route path="/admin/users" element={<div className="text-sm text-gray-600">Quản lý người dùng - Coming soon</div>} />
       </Route>

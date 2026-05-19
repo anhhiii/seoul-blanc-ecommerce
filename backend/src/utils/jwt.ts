@@ -6,7 +6,7 @@ const JWT_REFRESH_SECRET =
   process.env.JWT_REFRESH_SECRET || 'seoul_blanc_super_secret_refresh_key_2026';
 
 export const generateAccessToken = (payload: TokenPayload): string => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '15m' });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '5h' });
 };
 
 export const generateRefreshToken = (payload: TokenPayload): string => {

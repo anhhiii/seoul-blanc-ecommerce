@@ -6,7 +6,7 @@ import { generateAccessToken, generateRefreshToken } from '../../../utils/jwt.js
 import { toUserResponseDTO } from '../../../mappers/user.mapper.js';
 import { TokenPayload } from '../../../types/auth.js';
 import { AuthenticatedRequest } from '../../../middlewares/auth.middleware.js';
-import { UnauthorizedException } from '../../../exceptions/HttpException.js';
+import { UnauthorizedException } from '../../../exceptions/index.js';
 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

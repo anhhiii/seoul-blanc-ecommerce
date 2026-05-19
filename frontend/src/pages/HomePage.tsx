@@ -1,46 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Truck, Shield, RefreshCw, Headphones, Heart } from 'lucide-react';
-
-interface Product {
-  id: string;
-  name: string;
-  price: string;
-  originalPrice?: string;
-  image: string;
-  brand: string;
-}
-
-const categories = [
-  {
-    name: 'Áo',
-    slug: 'tops',
-    type: 'TOPS',
-    description: 'Áo thun, áo sơ mi, áo polo tối giản',
-    emoji: '👔',
-  },
-  {
-    name: 'Quần',
-    slug: 'bottoms',
-    type: 'BOTTOMS',
-    description: 'Quần jeans, quần vải, quần short thanh lịch',
-    emoji: '👖',
-  },
-  {
-    name: 'Áo khoác',
-    slug: 'outerwear',
-    type: 'OUTERWEAR',
-    description: 'Blazer, cardigan, áo khoác dạ phong cách',
-    emoji: '🧥',
-  },
-  {
-    name: 'Váy & Đầm',
-    slug: 'dresses',
-    type: 'DRESSES',
-    description: 'Váy liền, đầm dự tiệc tinh tế',
-    emoji: '👗',
-  },
-];
+import { ArrowRight, Truck, Shield, RefreshCw, Headphones, ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useProduct } from '../features/product/hooks/useProduct.js';
+import { useCategory } from '../features/category/hooks/useCategory.js';
+import type { Category } from '../features/category/types/index.js';
+import type { Product } from '../features/product/types/index.js';
 
 const features = [
   { icon: <Truck size={22} strokeWidth={1} />, title: 'MIỄN PHÍ VẬN CHUYỂN', desc: 'Đơn hàng từ 500.000đ' },
@@ -49,122 +13,63 @@ const features = [
   { icon: <Headphones size={22} strokeWidth={1} />, title: 'HỖ TRỢ 24/7', desc: 'Tư vấn mọi lúc mọi nơi' },
 ];
 
-const newArrivals: Product[] = [
-  {
-    id: 'na-1',
-    name: 'Áo babydoll nữ tay ngắn THE C.I.U',
-    price: '355.000₫',
-    image: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=600&auto=format&fit=crop',
-    brand: 'THE C.I.U',
-  },
-  {
-    id: 'na-2',
-    name: 'Áo thun baby tee nữ THE C.I.U, áo...',
-    price: '275.000₫',
-    image: 'https://images.unsplash.com/photo-1554412930-e970a19d451c?q=80&w=600&auto=format&fit=crop',
-    brand: 'THE C.I.U',
-  },
-  {
-    id: 'na-3',
-    name: 'Áo thun nữ cotton THE C.I.U, áo...',
-    price: '395.000₫',
-    image: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=600&auto=format&fit=crop',
-    brand: 'THE C.I.U',
-  },
-  {
-    id: 'na-4',
-    name: 'Quần dài kaki nữ ống cong THE C.I.U',
-    price: '475.000₫',
-    image: 'https://images.unsplash.com/photo-1509551388413-e18d0ac5d495?q=80&w=600&auto=format&fit=crop',
-    brand: 'THE C.I.U',
-  },
-];
-
-const bestSellers: Product[] = [
-  {
-    id: 'bs-1',
-    name: 'Áo Blazer Hàn Quốc dáng rộng thanh lịch',
-    price: '650.000₫',
-    image: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=600&auto=format&fit=crop',
-    brand: 'SEOUL BLANC',
-  },
-  {
-    id: 'bs-2',
-    name: 'Đầm sơ mi dáng suông chất liệu linen thoáng mát',
-    price: '520.000₫',
-    image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=600&auto=format&fit=crop',
-    brand: 'SEOUL BLANC',
-  },
-  {
-    id: 'bs-3',
-    name: 'Quần tây ống rộng xếp ly cạp cao tôn dáng',
-    price: '420.000₫',
-    image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?q=80&w=600&auto=format&fit=crop',
-    brand: 'SEOUL BLANC',
-  },
-  {
-    id: 'bs-4',
-    name: 'Áo khoác Cardigan dệt kim mỏng nhẹ phong cách',
-    price: '480.000₫',
-    image: 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?q=80&w=600&auto=format&fit=crop',
-    brand: 'SEOUL BLANC',
-  },
-];
-
-const onSale: Product[] = [
-  {
-    id: 'os-1',
-    name: 'Áo croptop cổ vuông basic trẻ trung',
-    price: '195.000₫',
-    originalPrice: '280.000₫',
-    image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop',
-    brand: 'THE C.I.U',
-  },
-  {
-    id: 'os-2',
-    name: 'Chân váy chữ A túi hộp năng động',
-    price: '245.000₫',
-    originalPrice: '350.000₫',
-    image: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=600&auto=format&fit=crop',
-    brand: 'THE C.I.U',
-  },
-  {
-    id: 'os-3',
-    name: 'Áo sơ mi lụa tơ tằm mềm mại thanh lịch',
-    price: '390.000₫',
-    originalPrice: '550.000₫',
-    image: 'https://images.unsplash.com/photo-1603252109303-2751441dd157?q=80&w=600&auto=format&fit=crop',
-    brand: 'SEOUL BLANC',
-  },
-  {
-    id: 'os-4',
-    name: 'Quần short jean cạp cao rách gấu cá tính',
-    price: '220.000₫',
-    originalPrice: '320.000₫',
-    image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=600&auto=format&fit=crop',
-    brand: 'THE C.I.U',
-  },
-];
+// Emoji mapping fallback for types
+const categoryMeta: Record<string, { emoji: string; desc: string }> = {
+  TOPS: { emoji: '👔', desc: 'Áo thun, áo sơ mi, áo polo tối giản' },
+  BOTTOMS: { emoji: '👖', desc: 'Quần jeans, quần vải, quần short thanh lịch' },
+  OUTERWEAR: { emoji: '🧥', desc: 'Blazer, cardigan, áo khoác dạ phong cách' },
+  DRESSES: { emoji: '👗', desc: 'Váy liền, đầm dự tiệc tinh tế' },
+};
 
 export const HomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'new-arrivals' | 'best-sellers' | 'on-sale'>('new-arrivals');
+  
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const getActiveProducts = () => {
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+    }
+  };
+  
+  const { useGetCategories } = useCategory();
+  const { useGetProducts } = useProduct();
+
+  // Queries
+  const { data: categoriesResponse, isLoading: isCategoriesLoading } = useGetCategories();
+  const { data: productsResponse, isLoading: isProductsLoading } = useGetProducts({ limit: 12 });
+
+  const dbCategories = categoriesResponse?.data?.categories || [];
+  const dbProducts = productsResponse?.data?.products || [];
+
+  // Filter products by tab
+  const getActiveProducts = (): Product[] => {
     switch (activeTab) {
       case 'new-arrivals':
-        return newArrivals;
+        // Latest products first
+        return dbProducts.slice(0, 4);
       case 'best-sellers':
-        return bestSellers;
-      case 'on-sale':
-        return onSale;
+        // Sliced from middle or fallback
+        return dbProducts.slice(4, 8).length > 0 ? dbProducts.slice(4, 8) : dbProducts.slice(0, 4);
+      case 'on-sale': {
+        // Filter by discountPrice exists
+        const saleProds = dbProducts.filter((p) => !!p.discountPrice);
+        return saleProds.length > 0 ? saleProds.slice(0, 4) : dbProducts.slice(0, 4);
+      }
       default:
-        return newArrivals;
+        return dbProducts.slice(0, 4);
     }
   };
 
   return (
     <div className="bg-[#FAF8F5]">
-      {/* ========== HERO BANNER (As in Image 1) ========== */}
+      {/* ========== HERO BANNER ========== */}
       <section className="relative h-[80vh] min-h-[550px] overflow-hidden">
         <img
           src="/hero_banner.png"
@@ -194,17 +99,17 @@ export const HomePage: React.FC = () => {
                 <ArrowRight size={14} strokeWidth={2} />
               </Link>
               <Link
-                to="/categories"
+                to="/products"
                 className="inline-flex items-center gap-2 px-7 py-4 border border-white/60 text-white text-xs uppercase tracking-widest font-medium rounded-lg hover:bg-white/10 transition-all duration-300"
               >
-                XEM DANH MỤC
+                XEM SẢN PHẨM
               </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ========== FEATURES BAR (As in Image 1) ========== */}
+      {/* ========== FEATURES BAR ========== */}
       <section className="bg-white border-y border-brand-200/50 py-5">
         <div className="max-w-7xl mx-auto px-6 sm:px-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center lg:text-left">
@@ -221,7 +126,7 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* ========== CATEGORIES GRID (Preserved) ========== */}
+      {/* ========== DYNAMIC CATEGORIES GRID ========== */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-6 sm:px-8">
           <div className="text-center mb-12">
@@ -231,58 +136,107 @@ export const HomePage: React.FC = () => {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {categories.map((cat) => (
-              <Link
-                key={cat.slug}
-                to={`/categories/${cat.slug}`}
-                className="group bg-white border border-brand-200/50 rounded-2xl p-8 hover:border-brand-400 hover:shadow-lg transition-all duration-300 text-center"
+          {isCategoriesLoading && (
+            <div className="py-10 flex justify-center">
+              <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          {!isCategoriesLoading && dbCategories.length === 0 && (
+            <p className="text-center text-xs text-brand-400 font-light">Chưa có danh mục nào được khởi tạo.</p>
+          )}
+
+          {!isCategoriesLoading && dbCategories.length > 0 && (
+            <div className="relative group">
+              <button 
+                onClick={scrollLeft} 
+                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 w-10 h-10 bg-white rounded-full shadow border border-brand-200 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 transition-all cursor-pointer hover:bg-brand-50"
               >
-                <div className="text-5xl mb-4">{cat.emoji}</div>
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-brand-900 mb-2 group-hover:text-brand-700 transition-colors">
-                  {cat.name}
-                </h3>
-                <p className="text-xs text-brand-500 font-light leading-relaxed mb-4">{cat.description}</p>
-                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-semibold text-brand-600 group-hover:text-brand-900 transition-colors">
-                  Xem thêm
-                  <ArrowRight size={12} strokeWidth={2} className="group-hover:translate-x-1 transition-transform" />
-                </span>
-              </Link>
-            ))}
-          </div>
+                <ChevronLeft size={20} className="text-brand-700" />
+              </button>
+
+              <div 
+                ref={scrollContainerRef}
+                className="flex overflow-x-auto gap-6 scrollbar-hide snap-x px-2 py-4"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {dbCategories.map((cat: Category) => {
+                  const meta = categoryMeta[cat.type] || { emoji: '✨', desc: 'Sản phẩm thời trang tối giản' };
+                  return (
+                    <Link
+                      key={cat.id}
+                      to={`/products?category=${cat.id}`}
+                      className="snap-start flex-none w-[280px] sm:w-[300px] group bg-white border border-brand-200/50 rounded-2xl p-6 hover:border-brand-400 hover:shadow-lg transition-all duration-300 flex flex-col justify-between items-center text-center h-64"
+                    >
+                      <div className="w-full flex-1 flex flex-col items-center justify-center">
+                        {cat.image ? (
+                          <div className="w-16 h-16 rounded-full overflow-hidden border border-brand-100 bg-brand-50 mb-3">
+                            <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="text-4xl mb-3">{meta.emoji}</div>
+                        )}
+                        <h3 className="text-sm font-semibold uppercase tracking-wider text-brand-900 mb-1 group-hover:text-brand-700 transition-colors">
+                          {cat.name}
+                        </h3>
+                        <p className="text-xs text-brand-500 font-light leading-relaxed line-clamp-2 max-w-[200px]">
+                          {cat.description || meta.desc}
+                        </p>
+                      </div>
+                      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-semibold text-brand-600 group-hover:text-brand-900 transition-colors mt-2">
+                        Xem sản phẩm
+                        <ArrowRight size={12} strokeWidth={2} className="group-hover:translate-x-1 transition-transform" />
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              <button 
+                onClick={scrollRight} 
+                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 w-10 h-10 bg-white rounded-full shadow border border-brand-200 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 transition-all cursor-pointer hover:bg-brand-50"
+              >
+                <ChevronRight size={20} className="text-brand-700" />
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* ========== TABS SECTION (As in Image 2) ========== */}
+      {/* ========== DYNAMIC PRODUCTS TABS ========== */}
       <section className="py-20 bg-white border-t border-brand-200/30">
         <div className="max-w-7xl mx-auto px-6 sm:px-8">
+          
           {/* Tabs header area */}
           <div className="flex flex-col sm:flex-row items-center justify-between border-b border-brand-200/60 pb-4 mb-10 gap-4">
             <div className="flex items-center gap-8 sm:gap-12">
               <button
                 onClick={() => setActiveTab('new-arrivals')}
-                className={`text-sm sm:text-base uppercase tracking-widest font-semibold pb-4 -mb-[18px] relative transition-colors duration-200 cursor-pointer ${activeTab === 'new-arrivals'
+                className={`text-sm sm:text-base uppercase tracking-widest font-semibold pb-4 -mb-[18px] relative transition-colors duration-200 cursor-pointer ${
+                  activeTab === 'new-arrivals'
                     ? 'text-brand-900 border-b-2 border-brand-900'
                     : 'text-brand-400 hover:text-brand-600'
-                  }`}
+                }`}
               >
                 NEW ARRIVALS
               </button>
               <button
                 onClick={() => setActiveTab('best-sellers')}
-                className={`text-sm sm:text-base uppercase tracking-widest font-semibold pb-4 -mb-[18px] relative transition-colors duration-200 cursor-pointer ${activeTab === 'best-sellers'
+                className={`text-sm sm:text-base uppercase tracking-widest font-semibold pb-4 -mb-[18px] relative transition-colors duration-200 cursor-pointer ${
+                  activeTab === 'best-sellers'
                     ? 'text-brand-900 border-b-2 border-brand-900'
                     : 'text-brand-400 hover:text-brand-600'
-                  }`}
+                }`}
               >
                 BEST SELLERS
               </button>
               <button
                 onClick={() => setActiveTab('on-sale')}
-                className={`text-sm sm:text-base uppercase tracking-widest font-semibold pb-4 -mb-[18px] relative transition-colors duration-200 cursor-pointer ${activeTab === 'on-sale'
+                className={`text-sm sm:text-base uppercase tracking-widest font-semibold pb-4 -mb-[18px] relative transition-colors duration-200 cursor-pointer ${
+                  activeTab === 'on-sale'
                     ? 'text-brand-900 border-b-2 border-brand-900'
                     : 'text-brand-400 hover:text-brand-600'
-                  }`}
+                }`}
               >
                 ON SALE
               </button>
@@ -297,58 +251,82 @@ export const HomePage: React.FC = () => {
             </Link>
           </div>
 
+          {isProductsLoading && (
+            <div className="py-20 flex justify-center">
+              <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          {!isProductsLoading && dbProducts.length === 0 && (
+            <p className="text-center text-xs text-brand-400 font-light py-10">Chưa có sản phẩm nào được nhập kho.</p>
+          )}
+
           {/* Grid of 4 products */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-            {getActiveProducts().map((product) => (
-              <div
-                key={product.id}
-                className="group flex flex-col bg-[#FAF8F5] rounded-2xl overflow-hidden border border-brand-200/50 hover:shadow-md transition-all duration-300 relative"
-              >
-                {/* Product Image */}
-                <div className="aspect-[3/4] relative overflow-hidden bg-brand-100">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                  />
-                  {product.originalPrice && (
-                    <span className="absolute top-3 left-3 bg-red-500 text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded">
-                      SALE
-                    </span>
-                  )}
-                  <button className="absolute top-3 right-3 p-1.5 rounded-full bg-white/80 hover:bg-white text-brand-700 hover:text-red-500 transition-colors shadow-sm cursor-pointer">
-                    <Heart size={14} />
-                  </button>
-                </div>
+          {!isProductsLoading && dbProducts.length > 0 && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+              {getActiveProducts().map((product: Product) => (
+                <div
+                  key={product.id}
+                  className="group flex flex-col bg-[#FAF8F5] rounded-2xl overflow-hidden border border-brand-200/50 hover:shadow-md transition-all duration-300 relative"
+                >
+                  {/* Product Image */}
+                  <Link to={`/products/${product.slug}`} className="aspect-[3/4] relative overflow-hidden bg-brand-100 block">
+                    {product.thumbnail ? (
+                      <img
+                        src={product.thumbnail}
+                        alt={product.name}
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-brand-50 text-brand-300">
+                        <ImageIcon size={28} />
+                      </div>
+                    )}
+                    {product.discountPrice && (
+                      <span className="absolute top-3 left-3 bg-red-500 text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded">
+                        SALE
+                      </span>
+                    )}
+                  </Link>
 
-                {/* Product details */}
-                <div className="p-4 flex-1 flex flex-col justify-between">
-                  <div>
-                    <span className="text-[9px] uppercase tracking-wider text-brand-400 font-medium">
-                      {product.brand}
-                    </span>
-                    <h4 className="text-xs sm:text-sm text-brand-850 font-light mt-1 mb-2 line-clamp-2 min-h-[32px] sm:min-h-[40px]">
-                      {product.name}
-                    </h4>
-                  </div>
-
-                  <div>
-                    <div className="flex items-baseline gap-2 mb-4">
-                      <span className="text-sm font-semibold text-brand-900">{product.price}</span>
-                      {product.originalPrice && (
-                        <span className="text-xs text-brand-400 line-through">{product.originalPrice}</span>
-                      )}
+                  {/* Product details */}
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[9px] uppercase tracking-wider text-brand-400 font-medium">
+                        {product.categoryName || 'SEOUL BLANC'}
+                      </span>
+                      <Link to={`/products/${product.slug}`}>
+                        <h4 className="text-xs sm:text-sm text-brand-900 font-light mt-1 mb-2 hover:text-brand-600 transition-colors line-clamp-2 min-h-[32px] sm:min-h-[40px]">
+                          {product.name}
+                        </h4>
+                      </Link>
                     </div>
 
-                    {/* Mua ngay button */}
-                    <button className="w-full py-2.5 bg-brand-900 hover:bg-brand-800 text-white text-[11px] uppercase tracking-widest font-semibold rounded-lg transition-colors cursor-pointer">
-                      Mua ngay
-                    </button>
+                    <div>
+                      <div className="flex items-baseline gap-2 mb-4">
+                        <span className="text-sm font-semibold text-brand-900">
+                          {(product.discountPrice || product.price).toLocaleString('vi-VN')}₫
+                        </span>
+                        {product.discountPrice && (
+                          <span className="text-xs text-brand-400 line-through">
+                            {product.price.toLocaleString('vi-VN')}₫
+                          </span>
+                        )}
+                      </div>
+
+                      {/* View Detail button */}
+                      <Link
+                        to={`/products/${product.slug}`}
+                        className="w-full py-2.5 bg-brand-900 hover:bg-brand-800 text-white text-[11px] uppercase tracking-widest font-semibold rounded-lg transition-colors flex items-center justify-center"
+                      >
+                        Xem chi tiết
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

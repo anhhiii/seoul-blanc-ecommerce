@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma.js';
-import { HttpException } from '../exceptions/HttpException.js';
+import { HttpException } from '../exceptions/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export interface AuthenticatedRequest extends Request {

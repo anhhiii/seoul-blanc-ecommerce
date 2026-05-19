@@ -10,14 +10,4 @@ export class HttpException extends Error {
   }
 }
 
-export class BadRequestException extends HttpException {
-  constructor(message: string = 'Bad Request') {
-    super(400, message);
-  }
-}
-
-export class UnauthorizedException extends HttpException {
-  constructor(message: string = 'Unauthorized') {
-    super(401, message);
-  }
-}
+export default HttpException;

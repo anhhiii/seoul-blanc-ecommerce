@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { AuthController } from '../../../controllers/v1/client/auth.controller.js';
 import { AuthService } from '../../../services/auth.service.js';
 import { verifyToken, isAdmin } from '../../../middlewares/auth.middleware.js';
-import { validate, loginSchema } from '../../../validations/auth.validation.js';
+import { validate } from '../../../middlewares/validate.middleware.js';
+import { loginSchema } from '../../../validations/auth.validation.js';
 
 const router = Router();
 

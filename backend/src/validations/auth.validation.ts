@@ -1,6 +1,4 @@
-import { Request, Response, NextFunction, RequestHandler } from 'express';
-import { AnyZodObject, ZodError, z } from 'zod';
-import { sendResponse } from '../utils/sendResponse.js';
+import { z } from 'zod';
 
 // Login Validation Schema
 export const loginSchema = z.object({
@@ -86,27 +84,6 @@ export const resetPasswordSchema = z.object({
       .min(6, 'New password must be at least 6 characters long'),
   }),
 });
-
-// Reusable Zod Validation Middleware
-export const validate = (schema: AnyZodObject): RequestHandler => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      await schema.parseAsync({
-        body: req.body,
-        query: req.query,
-        params: req.params,
-      });
-      next();
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => err.message).join(', ');
-        sendResponse(res, 400, errorMessages);
-        return;
-      }
-      next(error);
-    }
-  };
-};
 
 // Google Login Validation Schema
 export const googleLoginSchema = z.object({

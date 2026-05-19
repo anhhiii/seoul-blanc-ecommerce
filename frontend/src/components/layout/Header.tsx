@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Search, ShoppingBag, User, Menu, X, LogOut, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
 import { useAuth } from '../../features/auth/hooks/useAuth.js';
+import { useCategory } from '../../features/category/hooks/useCategory.js';
+import type { Category } from '../../features/category/types/index.js';
 
 export const Header: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -11,16 +13,26 @@ export const Header: React.FC = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
+  // Fetch categories for mega menu
+  const { useGetCategories } = useCategory();
+  const { data } = useGetCategories();
+  const categories = data?.data?.categories || [];
+
+  const tops = categories.filter((c: Category) => c.type === 'TOPS');
+  const bottoms = categories.filter((c: Category) => c.type === 'BOTTOMS');
+  const outerwear = categories.filter((c: Category) => c.type === 'OUTERWEAR');
+  const dresses = categories.filter((c: Category) => c.type === 'DRESSES');
+
   const navLinks = [
     { label: 'Trang chủ', to: '/' },
     { label: 'Sản phẩm', to: '/products' },
-    { label: 'Danh mục', to: '/categories' },
+    { label: 'Bộ sưu tập', to: '/collections' },
     { label: 'Về chúng tôi', to: '/about' },
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-brand-200/60 transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-brand-200/60 transition-all duration-300">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="flex items-center justify-between h-16 lg:h-20">
 
           {/* Logo */}
@@ -31,16 +43,118 @@ export const Header: React.FC = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className="text-xs uppercase tracking-[0.15em] font-medium text-brand-600 hover:text-brand-900 transition-colors duration-200 relative after:absolute after:bottom-[-2px] after:left-0 after:w-0 after:h-[1px] after:bg-brand-900 after:transition-all after:duration-300 hover:after:w-full"
-              >
-                {link.label}
-              </Link>
-            ))}
+          <nav className="hidden lg:flex items-center h-full">
+            <ul className="flex items-center gap-8 h-full">
+              {navLinks.map((link) => {
+                const isProductTab = link.label === 'Sản phẩm';
+
+                return (
+                  <li key={link.to} className={`h-full flex items-center ${isProductTab ? 'group' : ''}`}>
+                    <Link
+                      to={link.to}
+                      className="text-xs uppercase tracking-[0.15em] font-medium text-brand-600 hover:text-brand-900 transition-colors duration-200 py-4"
+                    >
+                      {link.label}
+                    </Link>
+
+                    {/* Mega Menu Overlay for Sản Phẩm */}
+                    {isProductTab && (
+                      <div className="absolute top-full left-0 w-full bg-white border-t border-brand-100 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
+                        <div className="max-w-7xl mx-auto px-8 py-10 grid grid-cols-5 gap-8">
+                          
+                          {/* Col 1: Tất cả */}
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-semibold tracking-wider uppercase text-brand-900 mb-6">
+                              <Link to="/products" className="hover:text-brand-600 transition-colors">
+                                Tất cả sản phẩm
+                              </Link>
+                            </h3>
+                            <ul className="space-y-3">
+                              <li><Link to="/products?type=NEW" className="text-xs text-brand-600 hover:text-brand-900 transition-colors">Sản Phẩm Mới</Link></li>
+                              <li><Link to="/products?type=BESTSELLER" className="text-xs text-brand-600 hover:text-brand-900 transition-colors">Bán Chạy Nhất</Link></li>
+                              <li><Link to="/products?type=SALE" className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors">OUTLET - Sale Up To 50%</Link></li>
+                            </ul>
+                          </div>
+
+                          {/* Col 2: Áo */}
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-semibold tracking-wider uppercase text-brand-900 mb-6">
+                              <Link to="/products?type=TOPS" className="hover:text-brand-600 transition-colors">
+                                Áo
+                              </Link>
+                            </h3>
+                            <ul className="space-y-3">
+                              {tops.slice(0, 8).map((cat: Category) => (
+                                <li key={cat.id}>
+                                  <Link to={`/products?type=TOPS&category=${cat.id}`} className="text-xs text-brand-600 hover:text-brand-900 transition-colors">
+                                    {cat.name}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          {/* Col 3: Quần */}
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-semibold tracking-wider uppercase text-brand-900 mb-6">
+                              <Link to="/products?type=BOTTOMS" className="hover:text-brand-600 transition-colors">
+                                Quần
+                              </Link>
+                            </h3>
+                            <ul className="space-y-3">
+                              {bottoms.slice(0, 8).map((cat: Category) => (
+                                <li key={cat.id}>
+                                  <Link to={`/products?type=BOTTOMS&category=${cat.id}`} className="text-xs text-brand-600 hover:text-brand-900 transition-colors">
+                                    {cat.name}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          {/* Col 4: Áo Khoác */}
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-semibold tracking-wider uppercase text-brand-900 mb-6">
+                              <Link to="/products?type=OUTERWEAR" className="hover:text-brand-600 transition-colors">
+                                Áo Khoác
+                              </Link>
+                            </h3>
+                            <ul className="space-y-3">
+                              {outerwear.slice(0, 8).map((cat: Category) => (
+                                <li key={cat.id}>
+                                  <Link to={`/products?type=OUTERWEAR&category=${cat.id}`} className="text-xs text-brand-600 hover:text-brand-900 transition-colors">
+                                    {cat.name}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          {/* Col 5: Váy Đầm */}
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-semibold tracking-wider uppercase text-brand-900 mb-6">
+                              <Link to="/products?type=DRESSES" className="hover:text-brand-600 transition-colors">
+                                Váy / Đầm
+                              </Link>
+                            </h3>
+                            <ul className="space-y-3">
+                              {dresses.slice(0, 8).map((cat: Category) => (
+                                <li key={cat.id}>
+                                  <Link to={`/products?type=DRESSES&category=${cat.id}`} className="text-xs text-brand-600 hover:text-brand-900 transition-colors">
+                                    {cat.name}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           </nav>
 
           {/* Desktop Right Actions */}

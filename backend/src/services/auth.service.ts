@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../config/prisma.js';
-import { BadRequestException, UnauthorizedException } from '../exceptions/HttpException.js';
+import { BadRequestException, UnauthorizedException } from '../exceptions/index.js';
 import { UserStatus } from '@prisma/client';
 import { MailService } from '../shared/services/mail.service.js';
 

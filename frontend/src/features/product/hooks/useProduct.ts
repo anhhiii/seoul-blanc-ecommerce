@@ -1,0 +1,86 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import productApi from "../api/product.api.js";
+import type { CreateProductInput, UpdateProductInput, ProductQueryFilters } from "../types/index.js";
+
+export const useProduct = () => {
+  const queryClient = useQueryClient();
+
+  // Query: Get public products
+  const useGetProducts = (filters?: ProductQueryFilters) =>
+    useQuery({
+      queryKey: ["products", filters],
+      queryFn: () => productApi.getProducts(filters),
+    });
+
+  // Query: Get admin products
+  const useAdminGetProducts = (filters?: ProductQueryFilters) =>
+    useQuery({
+      queryKey: ["admin-products", filters],
+      queryFn: () => productApi.adminGetProducts(filters),
+    });
+
+  // Query: Get single product detail
+  const useGetProduct = (idOrSlug: string, enabled = true) =>
+    useQuery({
+      queryKey: ["product", idOrSlug],
+      queryFn: () => productApi.getProduct(idOrSlug),
+      enabled: !!idOrSlug && enabled,
+    });
+
+  // Mutation: Create product
+  const createProductMutation = useMutation({
+    mutationFn: (data: CreateProductInput) => productApi.adminCreateProduct(data),
+    onSuccess: (response) => {
+      toast.success(response.message || "Tạo sản phẩm thành công! 🎉");
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || "Tạo sản phẩm thất bại";
+      toast.error(message);
+    },
+  });
+
+  // Mutation: Update product
+  const updateProductMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateProductInput }) =>
+      productApi.adminUpdateProduct(id, data),
+    onSuccess: (response, variables) => {
+      toast.success(response.message || "Cập nhật sản phẩm thành công! 🎉");
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["product", variables.id] });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || "Cập nhật sản phẩm thất bại";
+      toast.error(message);
+    },
+  });
+
+  // Mutation: Delete product
+  const deleteProductMutation = useMutation({
+    mutationFn: (id: string) => productApi.adminDeleteProduct(id),
+    onSuccess: (response) => {
+      toast.success(response.message || "Xóa sản phẩm thành công! 🗑️");
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || "Xóa sản phẩm thất bại";
+      toast.error(message);
+    },
+  });
+
+  return {
+    useGetProducts,
+    useAdminGetProducts,
+    useGetProduct,
+    createProduct: createProductMutation,
+    updateProduct: updateProductMutation,
+    deleteProduct: deleteProductMutation,
+  };
+};
+
+export default useProduct;

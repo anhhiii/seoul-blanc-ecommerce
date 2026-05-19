@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { AuthController } from '../../../controllers/v1/client/auth.controller.js';
 import { AuthService } from '../../../services/auth.service.js';
 import { verifyToken } from '../../../middlewares/auth.middleware.js';
+import { validate } from '../../../middlewares/validate.middleware.js';
 import {
-  validate,
   loginSchema,
   registerSchema,
   verifyOtpSchema,
