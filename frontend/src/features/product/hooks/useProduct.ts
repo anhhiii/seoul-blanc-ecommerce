@@ -8,10 +8,14 @@ export const useProduct = () => {
   const queryClient = useQueryClient();
 
   // Query: Get public products
-  const useGetProducts = (filters?: ProductQueryFilters) =>
+  const useGetProducts = (
+    filters?: ProductQueryFilters,
+    options?: { enabled?: boolean }
+  ) =>
     useQuery({
       queryKey: ["products", filters],
       queryFn: () => productApi.getProducts(filters),
+      enabled: options?.enabled,
     });
 
   // Query: Get public products with infinite scroll

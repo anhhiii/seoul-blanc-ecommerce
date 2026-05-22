@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Search, Sparkles, AlertTriangle, ArrowRight, X } from 'lucide-react';
+import { Sparkles, AlertTriangle, ArrowRight, X } from 'lucide-react';
 import { useProduct } from '../features/product/hooks/useProduct.js';
 import { useCategory } from '../features/category/hooks/useCategory.js';
 import type { Product } from '../features/product/types/index.js';
@@ -27,7 +27,6 @@ export const ProductsPage: React.FC = () => {
   const colorsParam = searchParams.get('colors') || '';
   const sizesParam = searchParams.get('sizes') || '';
 
-  const [searchInput, setSearchInput] = useState(searchParam);
   const [minPrice, setMinPrice] = useState(minPriceParam);
   const [maxPrice, setMaxPrice] = useState(maxPriceParam);
 
@@ -119,17 +118,7 @@ export const ProductsPage: React.FC = () => {
     setSearchParams(params);
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const params = new URLSearchParams(searchParams);
-    if (searchInput.trim()) {
-      params.set('search', searchInput.trim());
-    } else {
-      params.delete('search');
-    }
-    params.set('page', '1');
-    setSearchParams(params);
-  };
+
 
 
 
@@ -159,7 +148,6 @@ export const ProductsPage: React.FC = () => {
   };
 
   const clearAllFilters = () => {
-    setSearchInput('');
     setMinPrice('');
     setMaxPrice('');
     setSearchParams({});
@@ -206,6 +194,25 @@ export const ProductsPage: React.FC = () => {
             </>
           )}
         </div>
+
+        {/* Search Parameter Indicator */}
+        {searchParam && (
+          <div className="mb-6 bg-white border border-brand-200/50 rounded-2xl p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-200">
+            <span className="text-xs text-brand-700">
+              Kết quả tìm kiếm cho từ khóa: <strong className="font-semibold text-brand-900">"{searchParam}"</strong>
+            </span>
+            <button
+              onClick={() => {
+                const params = new URLSearchParams(searchParams);
+                params.delete('search');
+                setSearchParams(params);
+              }}
+              className="text-xs text-brand-400 hover:text-red-500 flex items-center gap-1 cursor-pointer font-medium transition-colors"
+            >
+              <X size={12} /> Xóa tìm kiếm
+            </button>
+          </div>
+        )}
 
         {/* ================= CATEGORY TABS & PILLS (As in Image) ================= */}
         <div className="bg-white border border-brand-200/50 rounded-2xl p-6 mb-8 space-y-5">
@@ -260,34 +267,20 @@ export const ProductsPage: React.FC = () => {
         </div>
 
         {/* ================= SEARCH & SORTING BAR ================= */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-
-          <form onSubmit={handleSearchSubmit} className="relative w-full sm:max-w-xs">
-            <input
-              type="text"
-              placeholder="Tìm kiếm sản phẩm..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-brand-200/50 rounded-xl text-xs focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all font-light"
-            />
-            <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 hover:text-brand-700">
-              <Search size={14} />
+        <div className="flex items-center justify-between gap-4 mb-8 text-xs">
+          {(categoryIdParam || searchParam || activeType) ? (
+            <button
+              onClick={clearAllFilters}
+              className="flex items-center gap-1 text-brand-500 hover:text-brand-900 font-semibold transition-colors cursor-pointer border border-brand-200 bg-white px-3 py-1.5 rounded-lg"
+            >
+              <X size={14} />
+              Xóa bộ lọc
             </button>
-          </form>
-
-          <div className="flex items-center justify-between sm:justify-end gap-4 text-xs">
-            {(categoryIdParam || searchParam || activeType) && (
-              <button
-                onClick={clearAllFilters}
-                className="flex items-center gap-1 text-brand-500 hover:text-brand-900 font-medium transition-colors cursor-pointer"
-              >
-                <X size={14} />
-                Xóa bộ lọc
-              </button>
-            )}
-            <div className="text-brand-500 font-light">
-              Hiển thị {products.length} trên {totalCount} sản phẩm
-            </div>
+          ) : (
+            <div />
+          )}
+          <div className="text-brand-500 font-light">
+            Hiển thị {products.length} trên {totalCount} sản phẩm
           </div>
         </div>
 

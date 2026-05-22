@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ChevronRight, ShoppingBag, ArrowLeft, ShieldCheck, HelpCircle, ChevronLeft, Minus, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { useProduct } from '../features/product/hooks/useProduct.js';
+import { useCart } from '../features/cart/hooks/useCart.js';
 import type { ColorType, SizeType, ProductVariant, Product } from '../features/product/types/index.js';
 
 export const ProductDetailPage: React.FC = () => {
   const { idOrSlug } = useParams<{ idOrSlug: string }>();
+  const navigate = useNavigate();
   const { useGetProduct, useGetProducts } = useProduct();
+  const { addToCart, isAuthenticated } = useCart();
 
   // Fetch product detail query
   const { data: response, isLoading, isError } = useGetProduct(idOrSlug || '');
@@ -26,11 +30,19 @@ export const ProductDetailPage: React.FC = () => {
   const [selectedColor, setSelectedColor] = useState<ColorType | null>(null);
   const [selectedSize, setSelectedSize] = useState<SizeType | null>(null);
 
+  // Reset selections and scroll to top when navigating to a different product
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setSelectedImage(null);
+    setSelectedColor(null);
+    setSelectedSize(null);
+    setQuantity(1);
+  }, [idOrSlug]);
+
+  const [quantity, setQuantity] = useState(1);
   const displayImage = selectedImage || product?.thumbnail || '';
   const activeColor = selectedColor || product?.variants?.[0]?.color || null;
   const activeSize = selectedSize || product?.variants?.[0]?.size || null;
-
-  const [quantity, setQuantity] = useState(1);
 
   // Extract unique colors and sizes available for this product
   const availableColors = product
@@ -56,6 +68,45 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleIncreaseQuantity = () => {
     if (actualQuantity < stockInfo) setQuantity(actualQuantity + 1);
+  };
+
+  const handleAddToCart = () => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng!');
+      navigate('/login');
+      return;
+    }
+    if (!activeVariant || !activeVariant.id) {
+      toast.error('Vui lòng chọn màu sắc và kích thước!');
+      return;
+    }
+    addToCart.mutate({
+      productVariantId: activeVariant.id,
+      quantity: actualQuantity,
+    });
+  };
+
+  const handleBuyNow = () => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để mua hàng!');
+      navigate('/login');
+      return;
+    }
+    if (!activeVariant || !activeVariant.id) {
+      toast.error('Vui lòng chọn màu sắc và kích thước!');
+      return;
+    }
+    addToCart.mutate(
+      {
+        productVariantId: activeVariant.id,
+        quantity: actualQuantity,
+      },
+      {
+        onSuccess: () => {
+          navigate('/cart');
+        },
+      }
+    );
   };
 
   if (isLoading) {
@@ -277,17 +328,26 @@ export const ProductDetailPage: React.FC = () => {
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
-                  disabled={stockInfo <= 0}
+                  disabled={stockInfo <= 0 || addToCart.isPending}
+                  onClick={handleAddToCart}
                   className="flex-1 py-4 bg-white border border-brand-900 text-brand-900 hover:bg-brand-50/40 text-xs font-bold uppercase tracking-widest rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm disabled:opacity-40 disabled:pointer-events-none"
                 >
-                  <ShoppingBag size={14} />
+                  {addToCart.isPending ? (
+                    <div className="w-3.5 h-3.5 border-2 border-brand-900 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <ShoppingBag size={14} />
+                  )}
                   Thêm vào giỏ hàng
                 </button>
                 
                 <button
-                  disabled={stockInfo <= 0}
-                  className="flex-1 py-4 bg-brand-900 hover:bg-brand-850 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-40 disabled:pointer-events-none"
+                  disabled={stockInfo <= 0 || addToCart.isPending}
+                  onClick={handleBuyNow}
+                  className="flex-1 py-4 bg-brand-900 hover:bg-brand-850 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md disabled:opacity-40 disabled:pointer-events-none"
                 >
+                  {addToCart.isPending ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : null}
                   Mua ngay
                 </button>
               </div>

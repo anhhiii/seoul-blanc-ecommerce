@@ -18,6 +18,7 @@ import { ProductManagementPage } from '../pages/admin/ProductManagementPage.js';
 import { ProductsPage } from '../pages/ProductsPage.js';
 import { ProductDetailPage } from '../pages/ProductDetailPage.js';
 import { CategoriesPage } from '../pages/CategoriesPage.js';
+import { CartPage } from '../pages/CartPage.js';
 
 // Guards
 import { ProtectedRoute } from '../shared/components/ProtectedRoute.js';
@@ -31,6 +32,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/products/:idOrSlug" element={<ProductDetailPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
+        <Route path="/cart" element={<CartPage />} />
       </Route>
 
       {/* ===== Auth Routes with AuthLayout (Split banner) ===== */}

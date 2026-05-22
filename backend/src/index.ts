@@ -13,6 +13,7 @@ import adminUploadRoutes from './routes/v1/admin/upload.route.js';
 import clientUploadRoutes from './routes/v1/client/upload.route.js';
 import clientProductRoutes from './routes/v1/client/product.route.js';
 import adminProductRoutes from './routes/v1/admin/product.route.js';
+import clientCartRoutes from './routes/v1/client/cart.route.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,6 +39,7 @@ app.use('/api/v1/products', clientProductRoutes);
 app.use('/api/v1/admin/products', adminProductRoutes);
 app.use('/api/v1/admin/upload', adminUploadRoutes);
 app.use('/api/v1/upload', clientUploadRoutes);
+app.use('/api/v1/cart', clientCartRoutes);
 
 // Basic API v1 status route
 app.get('/api/v1', (_req, res) => {
