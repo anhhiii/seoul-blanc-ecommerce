@@ -7,7 +7,13 @@ export type ColorType =
   | 'BEIGE'
   | 'BROWN'
   | 'NAVY'
-  | 'GREEN';
+  | 'GREEN'
+  | 'RED'
+  | 'BLUE'
+  | 'YELLOW'
+  | 'PURPLE'
+  | 'PINK'
+  | 'ORANGE';
 
 export type ProductStatusType = 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK';
 
@@ -37,6 +43,7 @@ export interface Product {
   style: string | null;
   tags: string[];
   sold: number;
+  views: number;
   ratingAverage: number;
   totalReviews: number;
   status: ProductStatusType;
@@ -94,5 +101,14 @@ export interface ProductsListResponse {
       limit: number;
       totalPages: number;
     };
+  };
+}
+
+export interface FeaturedProductsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    topSelling: Product[];
+    topViewed: Product[];
   };
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Search, Sparkles, AlertTriangle, ArrowRight, X } from 'lucide-react';
 import { useProduct } from '../features/product/hooks/useProduct.js';
@@ -14,7 +14,7 @@ const parentCategories = [
 ];
 
 export const ProductsPage: React.FC = () => {
-  const { useGetProducts } = useProduct();
+  const { useGetProductsInfinite } = useProduct();
   const { useGetCategories } = useCategory();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -22,7 +22,6 @@ export const ProductsPage: React.FC = () => {
   const categoryIdParam = searchParams.get('category') || '';
   const typeParam = searchParams.get('type') || '';
   const searchParam = searchParams.get('search') || '';
-  const pageParam = Number(searchParams.get('page')) || 1;
   const minPriceParam = searchParams.get('minPrice') || '';
   const maxPriceParam = searchParams.get('maxPrice') || '';
   const colorsParam = searchParams.get('colors') || '';
@@ -42,12 +41,15 @@ export const ProductsPage: React.FC = () => {
     : null;
   const activeType = selectedCat ? selectedCat.type : typeParam;
 
-  // Query products with active filters
+  // Query products with active filters via Infinite Scroll
   const {
-    data: productsResponse,
+    data: productsData,
     isLoading,
     isError,
-  } = useGetProducts({
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useGetProductsInfinite({
     search: searchParam || undefined,
     categoryId: categoryIdParam || undefined,
     categoryType: !categoryIdParam && activeType ? activeType : undefined,
@@ -55,12 +57,41 @@ export const ProductsPage: React.FC = () => {
     maxPrice: maxPriceParam ? Number(maxPriceParam) : undefined,
     colors: colorsParam || undefined,
     sizes: sizesParam || undefined,
-    page: pageParam,
     limit: 12,
   });
 
-  const products = productsResponse?.data?.products || [];
-  const pagination = productsResponse?.data?.pagination;
+  // Flatten products from pages
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const products = productsData ? productsData.pages.flatMap((page: any) => page.data?.products || []) : [];
+
+  // Get pagination from the last page
+  const lastPagePagination = productsData?.pages[productsData.pages.length - 1]?.data?.pagination;
+  const totalCount = lastPagePagination?.total || 0;
+
+  // Setup Intersection Observer for scroll-to-bottom triggering
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Handle Parent Type selection (Row 1 tabs)
   const handleTypeSelect = (type: string) => {
@@ -100,12 +131,7 @@ export const ProductsPage: React.FC = () => {
     setSearchParams(params);
   };
 
-  const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('page', newPage.toString());
-    setSearchParams(params);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+
 
   const handlePriceFilter = () => {
     const params = new URLSearchParams(searchParams);
@@ -141,8 +167,8 @@ export const ProductsPage: React.FC = () => {
 
   const activeColors = colorsParam ? colorsParam.split(',') : [];
   const activeSizes = sizesParam ? sizesParam.split(',') : [];
-  
-  const COLORS_LIST = ['BLACK', 'WHITE', 'GRAY', 'BEIGE', 'BROWN', 'NAVY', 'GREEN'];
+
+  const COLORS_LIST = ['BLACK', 'WHITE', 'GRAY', 'BEIGE', 'BROWN', 'NAVY', 'GREEN', 'RED', 'BLUE', 'YELLOW', 'PURPLE', 'PINK', 'ORANGE'];
   const SIZES_LIST = ['S', 'M', 'L', 'XL'];
 
   // Get dynamic Row 2 subcategories
@@ -156,7 +182,7 @@ export const ProductsPage: React.FC = () => {
   return (
     <div className="bg-[#FAF8F5] min-h-screen py-10">
       <div className="max-w-7xl mx-auto px-6 sm:px-8">
-        
+
         {/* ================= BREADCRUMBS (As in Image) ================= */}
         <div className="text-[11px] tracking-wide text-brand-500 font-light mb-6 flex items-center gap-1.5">
           <Link to="/" className="hover:text-brand-900 transition-colors">Trang chủ</Link>
@@ -165,7 +191,7 @@ export const ProductsPage: React.FC = () => {
           {activeParentObj && activeParentObj.type && (
             <>
               <span>&gt;</span>
-              <button 
+              <button
                 onClick={() => handleTypeSelect(activeParentObj.type)}
                 className="hover:text-brand-900 transition-colors font-medium cursor-pointer"
               >
@@ -183,7 +209,7 @@ export const ProductsPage: React.FC = () => {
 
         {/* ================= CATEGORY TABS & PILLS (As in Image) ================= */}
         <div className="bg-white border border-brand-200/50 rounded-2xl p-6 mb-8 space-y-5">
-          
+
           {/* Row 1: Parent Category Tabs */}
           <div className="border-b border-brand-100 pb-3 flex flex-wrap items-center gap-6 sm:gap-10">
             {parentCategories.map((p) => {
@@ -192,11 +218,10 @@ export const ProductsPage: React.FC = () => {
                 <button
                   key={p.label}
                   onClick={() => handleTypeSelect(p.type)}
-                  className={`text-xs sm:text-sm uppercase tracking-widest font-bold pb-2 relative transition-all cursor-pointer ${
-                    isActive
+                  className={`text-xs sm:text-sm uppercase tracking-widest font-bold pb-2 relative transition-all cursor-pointer ${isActive
                       ? 'text-brand-900 after:absolute after:bottom-[-13px] after:left-0 after:right-0 after:h-[2px] after:bg-brand-900 scale-102'
                       : 'text-brand-400 hover:text-brand-600'
-                  }`}
+                    }`}
                 >
                   {p.label}
                 </button>
@@ -208,26 +233,24 @@ export const ProductsPage: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 select-none">
             <button
               onClick={() => handleCategorySelect('')}
-              className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
-                !categoryIdParam
+              className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all cursor-pointer ${!categoryIdParam
                   ? 'border-brand-900 bg-brand-900 text-white shadow-xs'
                   : 'border-brand-200 text-brand-600 bg-brand-50/20 hover:border-brand-400'
-              }`}
+                }`}
             >
               Tất cả
             </button>
-            
+
             {subCategories.map((cat) => {
               const isSelected = categoryIdParam === cat.id;
               return (
                 <button
                   key={cat.id}
                   onClick={() => handleCategorySelect(cat.id)}
-                  className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
-                    isSelected
+                  className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all cursor-pointer ${isSelected
                       ? 'border-brand-900 bg-brand-900 text-white shadow-xs'
                       : 'border-brand-200 text-brand-600 bg-white hover:border-brand-400'
-                  }`}
+                    }`}
                 >
                   {cat.name}
                 </button>
@@ -238,7 +261,7 @@ export const ProductsPage: React.FC = () => {
 
         {/* ================= SEARCH & SORTING BAR ================= */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          
+
           <form onSubmit={handleSearchSubmit} className="relative w-full sm:max-w-xs">
             <input
               type="text"
@@ -263,37 +286,37 @@ export const ProductsPage: React.FC = () => {
               </button>
             )}
             <div className="text-brand-500 font-light">
-              Hiển thị {products.length} trên {pagination?.total || 0} sản phẩm
+              Hiển thị {products.length} trên {totalCount} sản phẩm
             </div>
           </div>
         </div>
 
         {/* ================= PRODUCTS GRID & SIDEBAR ================= */}
         <div className="flex flex-col lg:flex-row gap-8">
-          
+
           {/* ================= SIDEBAR FILTERS ================= */}
           <aside className="w-full lg:w-64 flex-shrink-0 space-y-8">
             {/* Price Filter */}
             <div className="bg-white p-5 rounded-2xl border border-brand-200/50 shadow-sm">
               <h3 className="text-xs font-bold uppercase tracking-widest text-brand-900 mb-4">Khoảng giá</h3>
               <div className="flex items-center gap-2 mb-3">
-                <input 
-                  type="number" 
-                  placeholder="TỪ" 
+                <input
+                  type="number"
+                  placeholder="TỪ"
                   value={minPrice}
                   onChange={(e) => setMinPrice(e.target.value)}
                   className="w-full text-xs p-2 border border-brand-200 rounded-lg text-center focus:border-brand-500 outline-none"
                 />
                 <span className="text-brand-400">-</span>
-                <input 
-                  type="number" 
-                  placeholder="ĐẾN" 
+                <input
+                  type="number"
+                  placeholder="ĐẾN"
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(e.target.value)}
                   className="w-full text-xs p-2 border border-brand-200 rounded-lg text-center focus:border-brand-500 outline-none"
                 />
               </div>
-              <button 
+              <button
                 onClick={handlePriceFilter}
                 className="w-full bg-brand-900 text-white text-[10px] font-bold uppercase tracking-widest py-2.5 rounded-lg hover:bg-brand-800 transition-colors cursor-pointer"
               >
@@ -309,11 +332,10 @@ export const ProductsPage: React.FC = () => {
                   <button
                     key={color}
                     onClick={() => toggleFilter('colors', color)}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all cursor-pointer border ${
-                      activeColors.includes(color) 
-                        ? 'border-brand-900 bg-brand-900 text-white shadow-xs' 
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all cursor-pointer border ${activeColors.includes(color)
+                        ? 'border-brand-900 bg-brand-900 text-white shadow-xs'
                         : 'border-brand-200 bg-brand-50 hover:border-brand-400 text-brand-700'
-                    }`}
+                      }`}
                   >
                     {color}
                   </button>
@@ -329,11 +351,10 @@ export const ProductsPage: React.FC = () => {
                   <button
                     key={size}
                     onClick={() => toggleFilter('sizes', size)}
-                    className={`w-10 h-10 rounded-lg text-xs font-semibold transition-all cursor-pointer border flex items-center justify-center ${
-                      activeSizes.includes(size) 
-                        ? 'border-brand-900 bg-brand-900 text-white shadow-xs' 
+                    className={`w-10 h-10 rounded-lg text-xs font-semibold transition-all cursor-pointer border flex items-center justify-center ${activeSizes.includes(size)
+                        ? 'border-brand-900 bg-brand-900 text-white shadow-xs'
                         : 'border-brand-200 bg-brand-50 hover:border-brand-400 text-brand-700'
-                    }`}
+                      }`}
                   >
                     {size}
                   </button>
@@ -344,123 +365,116 @@ export const ProductsPage: React.FC = () => {
 
           {/* ================= MAIN PRODUCTS GRID ================= */}
           <main className="flex-1">
-          
-          {isLoading && (
-            <div className="h-[40vh] flex flex-col items-center justify-center gap-3">
-              <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-xs text-brand-400 font-light">Đang tải sản phẩm...</p>
-            </div>
-          )}
 
-          {isError && (
-            <div className="h-[40vh] flex flex-col items-center justify-center gap-2 border border-brand-200/30 rounded-2xl bg-white p-8 text-center">
-              <AlertTriangle className="text-red-500" size={32} />
-              <h3 className="text-sm font-semibold text-brand-900 mt-2">Đã xảy ra lỗi</h3>
-              <p className="text-xs text-brand-500 font-light max-w-xs">Không thể kết nối đến máy chủ. Vui lòng tải lại trang.</p>
-            </div>
-          )}
+            {isLoading && (
+              <div className="h-[40vh] flex flex-col items-center justify-center gap-3">
+                <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-brand-400 font-light">Đang tải sản phẩm...</p>
+              </div>
+            )}
 
-          {!isLoading && !isError && products.length === 0 && (
-            <div className="h-[40vh] flex flex-col items-center justify-center border border-brand-200/30 rounded-2xl bg-white p-8 text-center">
-              <Sparkles className="text-brand-400 mb-3" size={36} />
-              <h3 className="text-sm font-semibold text-brand-900">Không tìm thấy sản phẩm nào</h3>
-              <p className="text-xs text-brand-500 font-light mt-1 max-w-xs">
-                Thử tìm kiếm với từ khóa khác hoặc xóa bớt các bộ lọc hiện tại.
-              </p>
-              <button
-                onClick={clearAllFilters}
-                className="mt-4 px-4 py-2 bg-brand-900 text-white text-[11px] font-semibold uppercase tracking-wider rounded-lg hover:bg-brand-850"
-              >
-                Xóa bộ lọc
-              </button>
-            </div>
-          )}
+            {isError && (
+              <div className="h-[40vh] flex flex-col items-center justify-center gap-2 border border-brand-200/30 rounded-2xl bg-white p-8 text-center">
+                <AlertTriangle className="text-red-500" size={32} />
+                <h3 className="text-sm font-semibold text-brand-900 mt-2">Đã xảy ra lỗi</h3>
+                <p className="text-xs text-brand-500 font-light max-w-xs">Không thể kết nối đến máy chủ. Vui lòng tải lại trang.</p>
+              </div>
+            )}
 
-          {!isLoading && !isError && products.length > 0 && (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                {products.map((prod: Product) => (
-                  <div
-                    key={prod.id}
-                    className="group flex flex-col bg-white border border-brand-200/40 rounded-2xl overflow-hidden hover:shadow-md transition-all duration-300 relative"
-                  >
-                    {/* Thumbnail Image */}
-                    <Link to={`/products/${prod.slug}`} className="aspect-[3/4] relative overflow-hidden bg-brand-50 block">
-                      <img
-                        src={prod.thumbnail}
-                        alt={prod.name}
-                        className="w-full h-full object-cover object-center group-hover:scale-103 transition-transform duration-500"
-                      />
-                      {prod.discountPrice && (
-                        <span className="absolute top-3 left-3 bg-red-500 text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded">
-                          SALE
-                        </span>
-                      )}
-                    </Link>
+            {!isLoading && !isError && products.length === 0 && (
+              <div className="h-[40vh] flex flex-col items-center justify-center border border-brand-200/30 rounded-2xl bg-white p-8 text-center">
+                <Sparkles className="text-brand-400 mb-3" size={36} />
+                <h3 className="text-sm font-semibold text-brand-900">Không tìm thấy sản phẩm nào</h3>
+                <p className="text-xs text-brand-500 font-light mt-1 max-w-xs">
+                  Thử tìm kiếm với từ khóa khác hoặc xóa bớt các bộ lọc hiện tại.
+                </p>
+                <button
+                  onClick={clearAllFilters}
+                  className="mt-4 px-4 py-2 bg-brand-900 text-white text-[11px] font-semibold uppercase tracking-wider rounded-lg hover:bg-brand-850"
+                >
+                  Xóa bộ lọc
+                </button>
+              </div>
+            )}
 
-                    {/* Info & Details */}
-                    <div className="p-4 flex-1 flex flex-col justify-between">
-                      <div>
-                        <span className="text-[9px] uppercase tracking-wider text-brand-400 font-medium">
-                          {prod.categoryName || 'Seoul Blanc'}
-                        </span>
-                        <Link to={`/products/${prod.slug}`}>
-                          <h4 className="text-xs sm:text-sm text-brand-900 font-light mt-1 mb-2 hover:text-brand-600 transition-colors line-clamp-2 min-h-[32px] sm:min-h-[40px]">
-                            {prod.name}
-                          </h4>
-                        </Link>
-                      </div>
-
-                      <div>
-                        <div className="flex items-baseline gap-2 mb-3.5">
-                          <span className="text-sm font-semibold text-brand-900">
-                            {(prod.discountPrice || prod.price).toLocaleString('vi-VN')}₫
+            {!isLoading && !isError && products.length > 0 && (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                  {products.map((prod: Product) => (
+                    <div
+                      key={prod.id}
+                      className="group flex flex-col bg-white border border-brand-200/40 rounded-2xl overflow-hidden hover:shadow-md transition-all duration-300 relative"
+                    >
+                      {/* Thumbnail Image */}
+                      <Link to={`/products/${prod.slug}`} className="aspect-[3/4] relative overflow-hidden bg-brand-50 block">
+                        <img
+                          src={prod.thumbnail}
+                          alt={prod.name}
+                          className="w-full h-full object-cover object-center group-hover:scale-103 transition-transform duration-500"
+                        />
+                        {prod.discountPrice && (
+                          <span className="absolute top-3 left-3 bg-red-500 text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded">
+                            SALE
                           </span>
-                          {prod.discountPrice && (
-                            <span className="text-[11px] text-brand-400 line-through">
-                              {prod.price.toLocaleString('vi-VN')}₫
-                            </span>
-                          )}
+                        )}
+                      </Link>
+
+                      {/* Info & Details */}
+                      <div className="p-4 flex-1 flex flex-col justify-between">
+                        <div>
+                          <span className="text-[9px] uppercase tracking-wider text-brand-400 font-medium">
+                            {prod.categoryName || 'Seoul Blanc'}
+                          </span>
+                          <Link to={`/products/${prod.slug}`}>
+                            <h4 className="text-xs sm:text-sm text-brand-900 font-light mt-1 mb-2 hover:text-brand-600 transition-colors line-clamp-2 min-h-[32px] sm:min-h-[40px]">
+                              {prod.name}
+                            </h4>
+                          </Link>
                         </div>
 
-                        <Link
-                          to={`/products/${prod.slug}`}
-                          className="w-full py-2 bg-brand-900 hover:bg-brand-800 text-white text-[10px] uppercase tracking-widest font-semibold rounded-lg transition-colors flex items-center justify-center gap-1 group/btn"
-                        >
-                          Xem chi tiết
-                          <ArrowRight size={10} className="group-hover/btn:translate-x-0.5 transition-transform" />
-                        </Link>
+                        <div>
+                          <div className="flex items-baseline gap-2 mb-3.5">
+                            <span className="text-sm font-semibold text-brand-900">
+                              {(prod.discountPrice || prod.price).toLocaleString('vi-VN')}₫
+                            </span>
+                            {prod.discountPrice && (
+                              <span className="text-[11px] text-brand-400 line-through">
+                                {prod.price.toLocaleString('vi-VN')}₫
+                              </span>
+                            )}
+                          </div>
+
+                          <Link
+                            to={`/products/${prod.slug}`}
+                            className="w-full py-2 bg-brand-900 hover:bg-brand-800 text-white text-[10px] uppercase tracking-widest font-semibold rounded-lg transition-colors flex items-center justify-center gap-1 group/btn"
+                          >
+                            Xem chi tiết
+                            <ArrowRight size={10} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                          </Link>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Pagination */}
-              {pagination && pagination.totalPages > 1 && (
-                <div className="mt-12 flex justify-center items-center gap-3">
-                  <button
-                    onClick={() => handlePageChange(Math.max(1, pageParam - 1))}
-                    disabled={pageParam === 1}
-                    className="px-3.5 py-2 border border-brand-200 rounded-lg bg-white text-xs font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-40"
-                  >
-                    Trước
-                  </button>
-                  <span className="text-xs text-brand-700 font-medium">
-                    Trang {pagination.page} / {pagination.totalPages}
-                  </span>
-                  <button
-                    onClick={() => handlePageChange(Math.min(pagination.totalPages, pageParam + 1))}
-                    disabled={pageParam === pagination.totalPages}
-                    className="px-3.5 py-2 border border-brand-200 rounded-lg bg-white text-xs font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-40"
-                  >
-                    Sau
-                  </button>
+                  ))}
                 </div>
-              )}
-            </>
-          )}
-        </main>
+
+                {/* Infinite Scroll Indicator & Trigger */}
+                <div ref={observerTarget} className="mt-12 py-6 flex flex-col items-center justify-center gap-2">
+                  {isFetchingNextPage ? (
+                    <>
+                      <div className="w-8 h-8 border-2 border-brand-900 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-xs text-brand-500 font-light">Đang tải thêm sản phẩm...</p>
+                    </>
+                  ) : hasNextPage ? (
+                    <p className="text-xs text-brand-400 font-light">Cuộn xuống hoặc kéo để xem tiếp...</p>
+                  ) : products.length > 0 ? (
+                    <p className="text-xs text-brand-400 font-light bg-brand-50/50 px-4 py-2 rounded-full border border-brand-100/50">
+                      Đã hiển thị tất cả {totalCount} sản phẩm của Seoul Blanc.
+                    </p>
+                  ) : null}
+                </div>
+              </>
+            )}
+          </main>
         </div>
       </div>
     </div>

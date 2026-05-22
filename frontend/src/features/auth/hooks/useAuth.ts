@@ -20,12 +20,11 @@ export const useAuth = () => {
     onSuccess: (response) => {
       const { user, accessToken } = response.data;
       console.log(accessToken)
-      
+
       // Xóa sạch cache cũ để đảm bảo dữ liệu mới hoàn toàn
       queryClient.clear();
-      
+
       setAuth(user, accessToken);
-      toast.success("Chào mừng bạn trở lại! 👋");
       navigate("/");
     },
     onError: (error: any) => {
@@ -41,7 +40,6 @@ export const useAuth = () => {
     mutationFn: (data: RegisterRequest) => authApi.register(data),
     onSuccess: (_, variables) => {
       queryClient.clear();
-      toast.success("Đăng ký tài khoản thành công! 🎉");
       navigate(`/verify-otp?email=${variables.email}`);
     },
     onError: (error: any) => {
@@ -56,7 +54,6 @@ export const useAuth = () => {
   const sendOtpMutation = useMutation({
     mutationFn: (data: SendOtpRequest) => authApi.sendOtp(data),
     onSuccess: () => {
-      toast.success("Mã OTP đã được gửi về email của bạn! 📧");
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || "Không thể gửi mã OTP";
@@ -70,7 +67,6 @@ export const useAuth = () => {
   const verifyOtpMutation = useMutation({
     mutationFn: (data: VerifyOtpRequest) => authApi.verifyOtp(data),
     onSuccess: () => {
-      toast.success("Xác thực OTP thành công! ✅");
       queryClient.clear();
       navigate("/login");
     },
@@ -85,9 +81,7 @@ export const useAuth = () => {
    */
   const resendOtpMutation = useMutation({
     mutationFn: (data: { email: string }) => authApi.resendOtp(data),
-    onSuccess: () => {
-      toast.success("Mã OTP mới đã được gửi! 📧");
-    },
+    onSuccess: () => { },
     onError: (error: any) => {
       const message = error.response?.data?.message || "Không thể gửi lại mã OTP";
       toast.error(message);
@@ -99,7 +93,6 @@ export const useAuth = () => {
     queryClient.clear();
 
     logoutStore();
-    toast.info("Hẹn gặp lại bạn sớm! 👋");
     navigate("/login");
   };
 
@@ -124,7 +117,6 @@ export const useAuth = () => {
   const resetPasswordMutation = useMutation({
     mutationFn: (data: ResetPasswordRequest) => authApi.resetPassword(data),
     onSuccess: () => {
-      toast.success("Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại. ✅");
       navigate("/login");
     },
     onError: (error: any) => {
@@ -142,7 +134,6 @@ export const useAuth = () => {
       const { user, accessToken } = response.data;
       queryClient.clear();
       setAuth(user, accessToken);
-      toast.success("Chào mừng bạn trở lại! 👋");
       navigate("/");
     },
     onError: (error: any) => {

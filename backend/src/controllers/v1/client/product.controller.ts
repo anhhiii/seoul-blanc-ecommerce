@@ -19,8 +19,10 @@ export class ClientProductController {
       status: 'ACTIVE' as ProductStatus, // Only ACTIVE products are visible to clients
       minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
       maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : undefined,
-      colors: req.query.colors ? (req.query.colors as string).split(',') as ColorEnum[] : undefined,
-      sizes: req.query.sizes ? (req.query.sizes as string).split(',') as SizeEnum[] : undefined,
+      colors: req.query.colors
+        ? ((req.query.colors as string).split(',') as ColorEnum[])
+        : undefined,
+      sizes: req.query.sizes ? ((req.query.sizes as string).split(',') as SizeEnum[]) : undefined,
       page: req.query.page ? Number(req.query.page) : undefined,
       limit: req.query.limit ? Number(req.query.limit) : undefined,
     };
@@ -39,6 +41,17 @@ export class ClientProductController {
     const product = await this.productService.getProductById(idOrSlug);
     sendResponse(res, 200, 'Product fetched successfully', {
       product: toProductDTO(product),
+    });
+  });
+
+  /**
+   * Get featured products (top selling & top viewed)
+   */
+  public getFeatured = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { topSelling, topViewed } = await this.productService.getFeaturedProducts();
+    sendResponse(res, 200, 'Featured products fetched successfully', {
+      topSelling: toProductDTOs(topSelling),
+      topViewed: toProductDTOs(topViewed),
     });
   });
 }

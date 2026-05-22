@@ -193,7 +193,10 @@ export class ProductService {
     }
 
     // Apply Color and Size filter via variants
-    if ((filters.colors && filters.colors.length > 0) || (filters.sizes && filters.sizes.length > 0)) {
+    if (
+      (filters.colors && filters.colors.length > 0) ||
+      (filters.sizes && filters.sizes.length > 0)
+    ) {
       whereClause.variants = {
         some: {
           ...(filters.colors && filters.colors.length > 0 ? { color: { in: filters.colors } } : {}),
@@ -245,7 +248,43 @@ export class ProductService {
       throw new NotFoundException('Product not found');
     }
 
+    // Increment views asynchronously
+    prisma.product
+      .update({
+        where: { id: product.id },
+        data: { views: { increment: 1 } },
+      })
+      .catch((err) => console.error('Failed to increment product views:', err));
+
     return product;
+  };
+
+  /**
+   * Get 10 best-selling and 10 most-viewed products
+   */
+  public getFeaturedProducts = async () => {
+    const [topSelling, topViewed] = await Promise.all([
+      prisma.product.findMany({
+        where: { status: 'ACTIVE' },
+        take: 10,
+        orderBy: { sold: 'desc' },
+        include: {
+          variants: true,
+          category: true,
+        },
+      }),
+      prisma.product.findMany({
+        where: { status: 'ACTIVE' },
+        take: 10,
+        orderBy: { views: 'desc' },
+        include: {
+          variants: true,
+          category: true,
+        },
+      }),
+    ]);
+
+    return { topSelling, topViewed };
   };
 
   /**

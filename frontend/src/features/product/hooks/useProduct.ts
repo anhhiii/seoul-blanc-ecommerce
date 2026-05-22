@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import productApi from "../api/product.api.js";
 import type { CreateProductInput, UpdateProductInput, ProductQueryFilters } from "../types/index.js";
@@ -12,6 +12,28 @@ export const useProduct = () => {
     useQuery({
       queryKey: ["products", filters],
       queryFn: () => productApi.getProducts(filters),
+    });
+
+  // Query: Get public products with infinite scroll
+  const useGetProductsInfinite = (filters?: Omit<ProductQueryFilters, 'page'>) =>
+    useInfiniteQuery({
+      queryKey: ["products-infinite", filters],
+      queryFn: ({ pageParam = 1 }) =>
+        productApi.getProducts({ ...filters, page: pageParam }),
+      initialPageParam: 1,
+      getNextPageParam: (lastPage: any) => {
+        const pagination = lastPage?.data?.pagination;
+        if (!pagination) return undefined;
+        const { page, totalPages } = pagination;
+        return page < totalPages ? page + 1 : undefined;
+      },
+    });
+
+  // Query: Get featured products
+  const useGetFeaturedProducts = () =>
+    useQuery({
+      queryKey: ["products-featured"],
+      queryFn: () => productApi.getFeaturedProducts(),
     });
 
   // Query: Get admin products
@@ -75,6 +97,8 @@ export const useProduct = () => {
 
   return {
     useGetProducts,
+    useGetProductsInfinite,
+    useGetFeaturedProducts,
     useAdminGetProducts,
     useGetProduct,
     createProduct: createProductMutation,

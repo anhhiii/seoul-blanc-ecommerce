@@ -6,12 +6,16 @@ import type {
   ProductResponse,
   ProductsListResponse,
   ProductQueryFilters,
+  FeaturedProductsResponse,
 } from "../types/index.js";
 
 export const productApi = {
   // Public Product Endpoints
   getProducts: (filters?: ProductQueryFilters) =>
     apiClient.get<any, ProductsListResponse>("/products", { params: filters }),
+
+  getFeaturedProducts: () =>
+    apiClient.get<any, FeaturedProductsResponse>("/products/featured"),
 
   getProduct: (idOrSlug: string) =>
     apiClient.get<any, ProductResponse>(`/products/${idOrSlug}`),

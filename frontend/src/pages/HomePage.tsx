@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Truck, Shield, RefreshCw, Headphones, ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, Truck, Shield, RefreshCw, Headphones, ImageIcon, ChevronLeft, ChevronRight, Eye, Flame } from 'lucide-react';
 import { useProduct } from '../features/product/hooks/useProduct.js';
 import { useCategory } from '../features/category/hooks/useCategory.js';
 import type { Category } from '../features/category/types/index.js';
@@ -22,50 +22,32 @@ const categoryMeta: Record<string, { emoji: string; desc: string }> = {
 };
 
 export const HomePage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'new-arrivals' | 'best-sellers' | 'on-sale'>('new-arrivals');
-  
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollCategoriesRef = useRef<HTMLDivElement>(null);
+  const scrollBestSellersRef = useRef<HTMLDivElement>(null);
+  const scrollMostViewedRef = useRef<HTMLDivElement>(null);
 
-  const scrollLeft = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+  const scrollLeft = (ref: React.RefObject<HTMLDivElement | null>) => {
+    if (ref.current) {
+      ref.current.scrollBy({ left: -320, behavior: 'smooth' });
     }
   };
 
-  const scrollRight = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+  const scrollRight = (ref: React.RefObject<HTMLDivElement | null>) => {
+    if (ref.current) {
+      ref.current.scrollBy({ left: 320, behavior: 'smooth' });
     }
   };
   
   const { useGetCategories } = useCategory();
-  const { useGetProducts } = useProduct();
+  const { useGetFeaturedProducts } = useProduct();
 
   // Queries
   const { data: categoriesResponse, isLoading: isCategoriesLoading } = useGetCategories();
-  const { data: productsResponse, isLoading: isProductsLoading } = useGetProducts({ limit: 12 });
+  const { data: featuredResponse, isLoading: isFeaturedLoading } = useGetFeaturedProducts();
 
   const dbCategories = categoriesResponse?.data?.categories || [];
-  const dbProducts = productsResponse?.data?.products || [];
-
-  // Filter products by tab
-  const getActiveProducts = (): Product[] => {
-    switch (activeTab) {
-      case 'new-arrivals':
-        // Latest products first
-        return dbProducts.slice(0, 4);
-      case 'best-sellers':
-        // Sliced from middle or fallback
-        return dbProducts.slice(4, 8).length > 0 ? dbProducts.slice(4, 8) : dbProducts.slice(0, 4);
-      case 'on-sale': {
-        // Filter by discountPrice exists
-        const saleProds = dbProducts.filter((p) => !!p.discountPrice);
-        return saleProds.length > 0 ? saleProds.slice(0, 4) : dbProducts.slice(0, 4);
-      }
-      default:
-        return dbProducts.slice(0, 4);
-    }
-  };
+  const topSelling = featuredResponse?.data?.topSelling || [];
+  const topViewed = featuredResponse?.data?.topViewed || [];
 
   return (
     <div className="bg-[#FAF8F5]">
@@ -142,21 +124,17 @@ export const HomePage: React.FC = () => {
             </div>
           )}
 
-          {!isCategoriesLoading && dbCategories.length === 0 && (
-            <p className="text-center text-xs text-brand-400 font-light">Chưa có danh mục nào được khởi tạo.</p>
-          )}
-
           {!isCategoriesLoading && dbCategories.length > 0 && (
             <div className="relative group">
               <button 
-                onClick={scrollLeft} 
+                onClick={() => scrollLeft(scrollCategoriesRef)} 
                 className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 w-10 h-10 bg-white rounded-full shadow border border-brand-200 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 transition-all cursor-pointer hover:bg-brand-50"
               >
                 <ChevronLeft size={20} className="text-brand-700" />
               </button>
-
+ 
               <div 
-                ref={scrollContainerRef}
+                ref={scrollCategoriesRef}
                 className="flex overflow-x-auto gap-6 scrollbar-hide snap-x px-2 py-4"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
@@ -191,9 +169,9 @@ export const HomePage: React.FC = () => {
                   );
                 })}
               </div>
-
+ 
               <button 
-                onClick={scrollRight} 
+                onClick={() => scrollRight(scrollCategoriesRef)} 
                 className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 w-10 h-10 bg-white rounded-full shadow border border-brand-200 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 transition-all cursor-pointer hover:bg-brand-50"
               >
                 <ChevronRight size={20} className="text-brand-700" />
@@ -203,73 +181,53 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* ========== DYNAMIC PRODUCTS TABS ========== */}
+      {/* ========== BEST SELLERS SLIDER (TOP 10) ========== */}
       <section className="py-20 bg-white border-t border-brand-200/30">
         <div className="max-w-7xl mx-auto px-6 sm:px-8">
-          
-          {/* Tabs header area */}
-          <div className="flex flex-col sm:flex-row items-center justify-between border-b border-brand-200/60 pb-4 mb-10 gap-4">
-            <div className="flex items-center gap-8 sm:gap-12">
-              <button
-                onClick={() => setActiveTab('new-arrivals')}
-                className={`text-sm sm:text-base uppercase tracking-widest font-semibold pb-4 -mb-[18px] relative transition-colors duration-200 cursor-pointer ${
-                  activeTab === 'new-arrivals'
-                    ? 'text-brand-900 border-b-2 border-brand-900'
-                    : 'text-brand-400 hover:text-brand-600'
-                }`}
+          <div className="flex items-center justify-between mb-10">
+            <div>
+              <span className="text-[10px] uppercase tracking-[0.3em] text-brand-600 font-medium">XU HƯỚNG MUA SẮM</span>
+              <h2 className="text-3xl font-light text-brand-900 tracking-wider uppercase mt-2">
+                Sản phẩm <span className="font-semibold">bán chạy nhất</span>
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => scrollLeft(scrollBestSellersRef)}
+                className="w-9 h-9 rounded-full border border-brand-200 flex items-center justify-center cursor-pointer hover:bg-brand-50 transition-colors"
               >
-                NEW ARRIVALS
+                <ChevronLeft size={16} className="text-brand-700" />
               </button>
-              <button
-                onClick={() => setActiveTab('best-sellers')}
-                className={`text-sm sm:text-base uppercase tracking-widest font-semibold pb-4 -mb-[18px] relative transition-colors duration-200 cursor-pointer ${
-                  activeTab === 'best-sellers'
-                    ? 'text-brand-900 border-b-2 border-brand-900'
-                    : 'text-brand-400 hover:text-brand-600'
-                }`}
+              <button 
+                onClick={() => scrollRight(scrollBestSellersRef)}
+                className="w-9 h-9 rounded-full border border-brand-200 flex items-center justify-center cursor-pointer hover:bg-brand-50 transition-colors"
               >
-                BEST SELLERS
-              </button>
-              <button
-                onClick={() => setActiveTab('on-sale')}
-                className={`text-sm sm:text-base uppercase tracking-widest font-semibold pb-4 -mb-[18px] relative transition-colors duration-200 cursor-pointer ${
-                  activeTab === 'on-sale'
-                    ? 'text-brand-900 border-b-2 border-brand-900'
-                    : 'text-brand-400 hover:text-brand-600'
-                }`}
-              >
-                ON SALE
+                <ChevronRight size={16} className="text-brand-700" />
               </button>
             </div>
-
-            <Link
-              to="/products"
-              className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-semibold text-brand-700 hover:text-brand-900 transition-colors group"
-            >
-              Xem tất cả
-              <ArrowRight size={14} strokeWidth={2} className="group-hover:translate-x-1 transition-transform" />
-            </Link>
           </div>
 
-          {isProductsLoading && (
-            <div className="py-20 flex justify-center">
+          {isFeaturedLoading && (
+            <div className="py-10 flex justify-center">
               <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
             </div>
           )}
 
-          {!isProductsLoading && dbProducts.length === 0 && (
-            <p className="text-center text-xs text-brand-400 font-light py-10">Chưa có sản phẩm nào được nhập kho.</p>
+          {!isFeaturedLoading && topSelling.length === 0 && (
+            <p className="text-center text-xs text-brand-400 font-light py-10">Chưa có sản phẩm bán chạy.</p>
           )}
 
-          {/* Grid of 4 products */}
-          {!isProductsLoading && dbProducts.length > 0 && (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-              {getActiveProducts().map((product: Product) => (
+          {!isFeaturedLoading && topSelling.length > 0 && (
+            <div 
+              ref={scrollBestSellersRef}
+              className="flex overflow-x-auto gap-6 scrollbar-hide snap-x py-4"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {topSelling.map((product: Product) => (
                 <div
                   key={product.id}
-                  className="group flex flex-col bg-[#FAF8F5] rounded-2xl overflow-hidden border border-brand-200/50 hover:shadow-md transition-all duration-300 relative"
+                  className="snap-start flex-none w-[260px] sm:w-[280px] group flex flex-col bg-[#FAF8F5] rounded-2xl overflow-hidden border border-brand-200/50 hover:shadow-md transition-all duration-300 relative"
                 >
-                  {/* Product Image */}
                   <Link to={`/products/${product.slug}`} className="aspect-[3/4] relative overflow-hidden bg-brand-100 block">
                     {product.thumbnail ? (
                       <img
@@ -287,9 +245,12 @@ export const HomePage: React.FC = () => {
                         SALE
                       </span>
                     )}
+                    <span className="absolute bottom-3 right-3 bg-brand-900/80 backdrop-blur-xs text-white text-[10px] px-2.5 py-1 rounded-md flex items-center gap-1 font-medium">
+                      <Flame size={12} className="text-amber-400 fill-amber-400" />
+                      Đã bán: {product.sold}
+                    </span>
                   </Link>
 
-                  {/* Product details */}
                   <div className="p-4 flex-1 flex flex-col justify-between">
                     <div>
                       <span className="text-[9px] uppercase tracking-wider text-brand-400 font-medium">
@@ -314,10 +275,118 @@ export const HomePage: React.FC = () => {
                         )}
                       </div>
 
-                      {/* View Detail button */}
                       <Link
                         to={`/products/${product.slug}`}
-                        className="w-full py-2.5 bg-brand-900 hover:bg-brand-800 text-white text-[11px] uppercase tracking-widest font-semibold rounded-lg transition-colors flex items-center justify-center"
+                        className="w-full py-2 bg-brand-900 hover:bg-brand-800 text-white text-[11px] uppercase tracking-widest font-semibold rounded-lg transition-colors flex items-center justify-center"
+                      >
+                        Xem chi tiết
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ========== MOST VIEWED SLIDER (TOP 10) ========== */}
+      <section className="py-20 bg-[#FAF8F5] border-t border-brand-200/30">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8">
+          <div className="flex items-center justify-between mb-10">
+            <div>
+              <span className="text-[10px] uppercase tracking-[0.3em] text-brand-600 font-medium">ĐƯỢC QUAN TÂM NHẤT</span>
+              <h2 className="text-3xl font-light text-brand-900 tracking-wider uppercase mt-2">
+                Sản phẩm <span className="font-semibold">xem nhiều nhất</span>
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => scrollLeft(scrollMostViewedRef)}
+                className="w-9 h-9 rounded-full border border-brand-200 bg-white flex items-center justify-center cursor-pointer hover:bg-brand-50 transition-colors"
+              >
+                <ChevronLeft size={16} className="text-brand-700" />
+              </button>
+              <button 
+                onClick={() => scrollRight(scrollMostViewedRef)}
+                className="w-9 h-9 rounded-full border border-brand-200 bg-white flex items-center justify-center cursor-pointer hover:bg-brand-50 transition-colors"
+              >
+                <ChevronRight size={16} className="text-brand-700" />
+              </button>
+            </div>
+          </div>
+
+          {isFeaturedLoading && (
+            <div className="py-10 flex justify-center">
+              <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          {!isFeaturedLoading && topViewed.length === 0 && (
+            <p className="text-center text-xs text-brand-400 font-light py-10">Chưa có sản phẩm được xem nhiều.</p>
+          )}
+
+          {!isFeaturedLoading && topViewed.length > 0 && (
+            <div 
+              ref={scrollMostViewedRef}
+              className="flex overflow-x-auto gap-6 scrollbar-hide snap-x py-4"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {topViewed.map((product: Product) => (
+                <div
+                  key={product.id}
+                  className="snap-start flex-none w-[260px] sm:w-[280px] group flex flex-col bg-white rounded-2xl overflow-hidden border border-brand-200/50 hover:shadow-md transition-all duration-300 relative"
+                >
+                  <Link to={`/products/${product.slug}`} className="aspect-[3/4] relative overflow-hidden bg-brand-100 block">
+                    {product.thumbnail ? (
+                      <img
+                        src={product.thumbnail}
+                        alt={product.name}
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-brand-50 text-brand-300">
+                        <ImageIcon size={28} />
+                      </div>
+                    )}
+                    {product.discountPrice && (
+                      <span className="absolute top-3 left-3 bg-red-500 text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded">
+                        SALE
+                      </span>
+                    )}
+                    <span className="absolute bottom-3 right-3 bg-brand-900/80 backdrop-blur-xs text-white text-[10px] px-2.5 py-1 rounded-md flex items-center gap-1 font-medium">
+                      <Eye size={12} className="text-brand-300" />
+                      Lượt xem: {product.views}
+                    </span>
+                  </Link>
+
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[9px] uppercase tracking-wider text-brand-400 font-medium">
+                        {product.categoryName || 'SEOUL BLANC'}
+                      </span>
+                      <Link to={`/products/${product.slug}`}>
+                        <h4 className="text-xs sm:text-sm text-brand-900 font-light mt-1 mb-2 hover:text-brand-600 transition-colors line-clamp-2 min-h-[32px] sm:min-h-[40px]">
+                          {product.name}
+                        </h4>
+                      </Link>
+                    </div>
+
+                    <div>
+                      <div className="flex items-baseline gap-2 mb-4">
+                        <span className="text-sm font-semibold text-brand-900">
+                          {(product.discountPrice || product.price).toLocaleString('vi-VN')}₫
+                        </span>
+                        {product.discountPrice && (
+                          <span className="text-xs text-brand-400 line-through">
+                            {product.price.toLocaleString('vi-VN')}₫
+                          </span>
+                        )}
+                      </div>
+
+                      <Link
+                        to={`/products/${product.slug}`}
+                        className="w-full py-2 bg-brand-900 hover:bg-brand-800 text-white text-[11px] uppercase tracking-widest font-semibold rounded-lg transition-colors flex items-center justify-center"
                       >
                         Xem chi tiết
                       </Link>

@@ -56,6 +56,12 @@ enum ColorEnum {
   BROWN
   NAVY
   GREEN
+  RED
+  BLUE
+  YELLOW
+  PURPLE
+  PINK
+  ORANGE
 }
 
 enum OrderStatus {
@@ -133,6 +139,7 @@ model Product {
   style         String?
   tags          String[]
   sold          Int           @default(0)
+  views         Int           @default(0)
   ratingAverage Float         @default(0.0)
   totalReviews  Int           @default(0)
   status        ProductStatus @default(ACTIVE)

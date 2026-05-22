@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ColorEnum } from '@prisma/client';
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
@@ -6,9 +7,9 @@ const variantSchema = z.object({
   size: z.enum(['S', 'M', 'L', 'XL'], {
     errorMap: () => ({ message: 'Size must be one of: S, M, L, XL' }),
   }),
-  color: z.enum(['BLACK', 'WHITE', 'GRAY', 'BEIGE', 'BROWN', 'NAVY', 'GREEN'], {
+  color: z.nativeEnum(ColorEnum, {
     errorMap: () => ({
-      message: 'Color must be one of: BLACK, WHITE, GRAY, BEIGE, BROWN, NAVY, GREEN',
+      message: 'Color must be a valid ColorEnum value',
     }),
   }),
   stock: z.number().min(0, 'Stock must be at least 0'),

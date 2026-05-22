@@ -10,6 +10,7 @@ const productController = new ClientProductController(productService);
 
 // Public product routes
 router.get('/', productController.getAll);
+router.get('/featured', productController.getFeatured);
 router.get('/:idOrSlug', productController.getByIdOrSlug);
 
 export default router;

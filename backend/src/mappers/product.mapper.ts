@@ -26,6 +26,7 @@ export interface ProductDTO {
   style: string | null;
   tags: string[];
   sold: number;
+  views: number;
   ratingAverage: number;
   totalReviews: number;
   status: string;
@@ -67,6 +68,7 @@ export const toProductDTO = (product: ProductWithRelations): ProductDTO => {
     style: product.style,
     tags: product.tags,
     sold: product.sold,
+    views: product.views || 0,
     ratingAverage: product.ratingAverage,
     totalReviews: product.totalReviews,
     status: product.status,

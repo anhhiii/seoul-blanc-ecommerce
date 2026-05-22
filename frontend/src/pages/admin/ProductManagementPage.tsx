@@ -115,7 +115,7 @@ export const ProductManagementPage: React.FC = () => {
   const openEditModal = (prod: Product) => {
     setEditingProduct(prod);
     setName(prod.name);
-    
+
     // Tìm parent category type của danh mục hiện tại để pre-fill
     const cat = categories.find((c) => c.id === prod.categoryId);
     setParentCategoryType(cat ? cat.type : '');
@@ -586,33 +586,30 @@ export const ProductManagementPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveFormTab('info')}
-                className={`py-3.5 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-                  activeFormTab === 'info'
+                className={`py-3.5 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${activeFormTab === 'info'
                     ? 'border-brand-500 text-brand-900'
                     : 'border-transparent text-gray-400 hover:text-gray-600'
-                }`}
+                  }`}
               >
                 Thông tin chung
               </button>
               <button
                 type="button"
                 onClick={() => setActiveFormTab('images')}
-                className={`ml-8 py-3.5 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-                  activeFormTab === 'images'
+                className={`ml-8 py-3.5 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${activeFormTab === 'images'
                     ? 'border-brand-500 text-brand-900'
                     : 'border-transparent text-gray-400 hover:text-gray-600'
-                }`}
+                  }`}
               >
                 Hình ảnh chi tiết
               </button>
               <button
                 type="button"
                 onClick={() => setActiveFormTab('variants')}
-                className={`ml-8 py-3.5 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-                  activeFormTab === 'variants'
+                className={`ml-8 py-3.5 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${activeFormTab === 'variants'
                     ? 'border-brand-500 text-brand-900'
                     : 'border-transparent text-gray-400 hover:text-gray-600'
-                }`}
+                  }`}
               >
                 Biến thể ({variants.length})
               </button>
@@ -654,10 +651,10 @@ export const ProductManagementPage: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all bg-white"
                       >
                         <option value="">Chọn nhóm lớn...</option>
-                        <option value="TOPS">Áo (TOPS)</option>
-                        <option value="BOTTOMS">Quần (BOTTOMS)</option>
-                        <option value="OUTERWEAR">Áo khoác (OUTERWEAR)</option>
-                        <option value="DRESSES">Váy / Đầm (DRESSES)</option>
+                        <option value="TOPS">Áo</option>
+                        <option value="BOTTOMS">Quần</option>
+                        <option value="OUTERWEAR">Áo khoác</option>
+                        <option value="DRESSES">Váy / Đầm</option>
                       </select>
                     </div>
 
@@ -976,6 +973,12 @@ export const ProductManagementPage: React.FC = () => {
                                 <option value="BROWN">BROWN (Nâu)</option>
                                 <option value="NAVY">NAVY (Xanh navy)</option>
                                 <option value="GREEN">GREEN (Xanh lá)</option>
+                                <option value="RED">RED (Đỏ)</option>
+                                <option value="BLUE">BLUE (Xanh dương)</option>
+                                <option value="PINK">PINK (Hồng)</option>
+                                <option value="YELLOW">YELLOW (Vàng)</option>
+                                <option value="PURPLE">PURPLE (Tím)</option>
+                                <option value="ORANGE">ORANGE (Cam)</option>
                               </select>
                             </td>
 
