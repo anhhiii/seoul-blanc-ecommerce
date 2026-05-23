@@ -1,20 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, ChevronRight, ShoppingBag, ArrowLeft, ShieldCheck, HelpCircle, ChevronLeft, Minus, Plus } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ShoppingBag, ArrowLeft, ShieldCheck, HelpCircle, ChevronLeft, Minus, Plus, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProduct } from '../features/product/hooks/useProduct.js';
 import { useCart } from '../features/cart/hooks/useCart.js';
+import { useAuthStore } from '../store/authStore.js';
+import { useWishlist } from '../features/wishlist/hooks/useWishlist.js';
 import type { ColorType, SizeType, ProductVariant, Product } from '../features/product/types/index.js';
 
 export const ProductDetailPage: React.FC = () => {
   const { idOrSlug } = useParams<{ idOrSlug: string }>();
   const navigate = useNavigate();
   const { useGetProduct, useGetProducts } = useProduct();
-  const { addToCart, isAuthenticated } = useCart();
+  const { addToCart } = useCart();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { useGetWishlistIds, toggleWishlist } = useWishlist();
+  const { data: wishlistIdsRes } = useGetWishlistIds();
+  const wishlistIds = wishlistIdsRes?.data?.productIds || [];
 
   // Fetch product detail query
   const { data: response, isLoading, isError } = useGetProduct(idOrSlug || '');
   const product = response?.data?.product;
+
+  const isProductFavorited = product?.id ? wishlistIds.includes(product.id) : false;
+
+  const handleToggleWishlist = () => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để lưu sản phẩm yêu thích.');
+      navigate('/login');
+      return;
+    }
+    if (product?.id) {
+      toggleWishlist.mutate(product.id);
+    }
+  };
 
   // Fetch related products query
   const { data: relatedResponse } = useGetProducts({ 
@@ -340,7 +359,7 @@ export const ProductDetailPage: React.FC = () => {
                   Thêm vào giỏ hàng
                 </button>
                 
-                <button
+                 <button
                   disabled={stockInfo <= 0 || addToCart.isPending}
                   onClick={handleBuyNow}
                   className="flex-1 py-4 bg-brand-900 hover:bg-brand-850 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md disabled:opacity-40 disabled:pointer-events-none"
@@ -349,6 +368,19 @@ export const ProductDetailPage: React.FC = () => {
                     <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : null}
                   Mua ngay
+                </button>
+
+                {/* Wishlist Toggle Button */}
+                <button
+                  onClick={handleToggleWishlist}
+                  className={`px-5 py-4 rounded-xl transition-all flex items-center justify-center border cursor-pointer ${
+                    isProductFavorited
+                      ? 'border-red-200 bg-red-50 text-red-500 hover:bg-red-100/50'
+                      : 'border-brand-200 bg-white text-brand-650 hover:bg-brand-50'
+                  }`}
+                  title={isProductFavorited ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
+                >
+                  <Heart size={16} className={isProductFavorited ? 'fill-red-500 text-red-500' : 'text-brand-600'} />
                 </button>
               </div>
             </div>

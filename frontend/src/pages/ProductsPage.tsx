@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { Sparkles, AlertTriangle, ArrowRight, X } from 'lucide-react';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { Sparkles, AlertTriangle, ArrowRight, X, Heart } from 'lucide-react';
 import { useProduct } from '../features/product/hooks/useProduct.js';
 import { useCategory } from '../features/category/hooks/useCategory.js';
+import { useAuthStore } from '../store/authStore.js';
+import { useWishlist } from '../features/wishlist/hooks/useWishlist.js';
+import { toast } from 'sonner';
 import type { Product } from '../features/product/types/index.js';
 
 const parentCategories = [
@@ -14,6 +17,22 @@ const parentCategories = [
 ];
 
 export const ProductsPage: React.FC = () => {
+  const navigate = useNavigate();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { useGetWishlistIds, toggleWishlist } = useWishlist();
+  const { data: wishlistIdsRes } = useGetWishlistIds();
+  const wishlistIds = wishlistIdsRes?.data?.productIds || [];
+  const isFavorited = (id: string) => wishlistIds.includes(id);
+
+  const handleToggleWishlist = (productId: string) => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để lưu sản phẩm yêu thích.');
+      navigate('/login');
+      return;
+    }
+    toggleWishlist.mutate(productId);
+  };
+
   const { useGetProductsInfinite } = useProduct();
   const { useGetCategories } = useCategory();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -411,6 +430,26 @@ export const ProductsPage: React.FC = () => {
                           </span>
                         )}
                       </Link>
+
+                      {/* Toggle Wishlist Button */}
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleToggleWishlist(prod.id);
+                        }}
+                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-xs border border-brand-200/45 flex items-center justify-center shadow-xs z-10 transition-all duration-200 cursor-pointer hover:bg-white"
+                        title={isFavorited(prod.id) ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
+                      >
+                        <Heart
+                          size={14}
+                          className={`transition-colors duration-200 ${
+                            isFavorited(prod.id)
+                              ? 'fill-red-500 text-red-500'
+                              : 'text-brand-600 hover:text-red-500'
+                          }`}
+                        />
+                      </button>
 
                       {/* Info & Details */}
                       <div className="p-4 flex-1 flex flex-col justify-between">

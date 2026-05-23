@@ -23,6 +23,15 @@ import { CartPage } from '../pages/CartPage.js';
 // Guards
 import { ProtectedRoute } from '../shared/components/ProtectedRoute.js';
 
+// Account Pages
+import { AccountLayout } from '../pages/account/AccountLayout.js';
+import { ProfilePage } from '../pages/account/ProfilePage.js';
+import { OrdersPage } from '../pages/account/OrdersPage.js';
+import { WishlistPage } from '../pages/account/WishlistPage.js';
+import { AddressesPage } from '../pages/account/AddressesPage.js';
+import { VouchersPage } from '../pages/account/VouchersPage.js';
+import { NotificationsPage } from '../pages/account/NotificationsPage.js';
+
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
@@ -33,6 +42,22 @@ export const AppRoutes: React.FC = () => {
         <Route path="/products/:idOrSlug" element={<ProductDetailPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/cart" element={<CartPage />} />
+
+        {/* ===== Protected Account Routes ===== */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <AccountLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/account/profile" element={<ProfilePage />} />
+          <Route path="/account/orders" element={<OrdersPage />} />
+          <Route path="/account/wishlist" element={<WishlistPage />} />
+          <Route path="/account/addresses" element={<AddressesPage />} />
+          <Route path="/account/vouchers" element={<VouchersPage />} />
+          <Route path="/account/notifications" element={<NotificationsPage />} />
+        </Route>
       </Route>
 
       {/* ===== Auth Routes with AuthLayout (Split banner) ===== */}

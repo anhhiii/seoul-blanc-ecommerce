@@ -1,8 +1,11 @@
 import React, { useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Truck, Shield, RefreshCw, Headphones, ImageIcon, ChevronLeft, ChevronRight, Eye, Flame } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Truck, Shield, RefreshCw, Headphones, ImageIcon, ChevronLeft, ChevronRight, Eye, Flame, Heart } from 'lucide-react';
 import { useProduct } from '../features/product/hooks/useProduct.js';
 import { useCategory } from '../features/category/hooks/useCategory.js';
+import { useAuthStore } from '../store/authStore.js';
+import { useWishlist } from '../features/wishlist/hooks/useWishlist.js';
+import { toast } from 'sonner';
 import type { Category } from '../features/category/types/index.js';
 import type { Product } from '../features/product/types/index.js';
 
@@ -22,6 +25,22 @@ const categoryMeta: Record<string, { emoji: string; desc: string }> = {
 };
 
 export const HomePage: React.FC = () => {
+  const navigate = useNavigate();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { useGetWishlistIds, toggleWishlist } = useWishlist();
+  const { data: wishlistIdsRes } = useGetWishlistIds();
+  const wishlistIds = wishlistIdsRes?.data?.productIds || [];
+  const isFavorited = (id: string) => wishlistIds.includes(id);
+
+  const handleToggleWishlist = (productId: string) => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để lưu sản phẩm yêu thích.');
+      navigate('/login');
+      return;
+    }
+    toggleWishlist.mutate(productId);
+  };
+
   const scrollCategoriesRef = useRef<HTMLDivElement>(null);
   const scrollBestSellersRef = useRef<HTMLDivElement>(null);
   const scrollMostViewedRef = useRef<HTMLDivElement>(null);
@@ -251,6 +270,26 @@ export const HomePage: React.FC = () => {
                     </span>
                   </Link>
 
+                  {/* Toggle Wishlist Button */}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleToggleWishlist(product.id);
+                    }}
+                    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-xs border border-brand-200/45 flex items-center justify-center shadow-xs z-10 transition-all duration-200 cursor-pointer hover:bg-white"
+                    title={isFavorited(product.id) ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
+                  >
+                    <Heart
+                      size={14}
+                      className={`transition-colors duration-200 ${
+                        isFavorited(product.id)
+                          ? 'fill-red-500 text-red-500'
+                          : 'text-brand-600 hover:text-red-500'
+                      }`}
+                    />
+                  </button>
+
                   <div className="p-4 flex-1 flex flex-col justify-between">
                     <div>
                       <span className="text-[9px] uppercase tracking-wider text-brand-400 font-medium">
@@ -359,6 +398,26 @@ export const HomePage: React.FC = () => {
                       Lượt xem: {product.views}
                     </span>
                   </Link>
+
+                  {/* Toggle Wishlist Button */}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleToggleWishlist(product.id);
+                    }}
+                    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-xs border border-brand-200/45 flex items-center justify-center shadow-xs z-10 transition-all duration-200 cursor-pointer hover:bg-white"
+                    title={isFavorited(product.id) ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
+                  >
+                    <Heart
+                      size={14}
+                      className={`transition-colors duration-200 ${
+                        isFavorited(product.id)
+                          ? 'fill-red-500 text-red-500'
+                          : 'text-brand-600 hover:text-red-500'
+                      }`}
+                    />
+                  </button>
 
                   <div className="p-4 flex-1 flex flex-col justify-between">
                     <div>

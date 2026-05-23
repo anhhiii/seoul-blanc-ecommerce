@@ -102,9 +102,10 @@ model User {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  cart    Cart?
-  orders  Order[]
-  reviews Review[]
+  cart     Cart?
+  orders   Order[]
+  reviews  Review[]
+  wishlist Wishlist?
 
   @@map("users")
 }
@@ -244,4 +245,15 @@ type OrderItem {
   size             SizeEnum
   color            ColorEnum
   price            Float
+}
+
+model Wishlist {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @unique @db.ObjectId
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productIds String[] @db.ObjectId
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("wishlists")
 }
