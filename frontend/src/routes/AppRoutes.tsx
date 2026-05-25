@@ -31,6 +31,8 @@ import { WishlistPage } from '../pages/account/WishlistPage.js';
 import { AddressesPage } from '../pages/account/AddressesPage.js';
 import { VouchersPage } from '../pages/account/VouchersPage.js';
 import { NotificationsPage } from '../pages/account/NotificationsPage.js';
+import { CheckoutPage } from '../pages/CheckoutPage.js';
+import { OrderManagementPage } from '../pages/admin/OrderManagementPage.js';
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -42,6 +44,14 @@ export const AppRoutes: React.FC = () => {
         <Route path="/products/:idOrSlug" element={<ProductDetailPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/cart" element={<CartPage />} />
+        <Route
+          path="/checkout"
+          element={
+            <ProtectedRoute>
+              <CheckoutPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* ===== Protected Account Routes ===== */}
         <Route
@@ -80,7 +90,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/admin" element={<div className="text-sm text-gray-600">Admin Dashboard - Coming soon</div>} />
         <Route path="/admin/products" element={<ProductManagementPage />} />
         <Route path="/admin/categories" element={<CategoryManagementPage />} />
-        <Route path="/admin/orders" element={<div className="text-sm text-gray-600">Quản lý đơn hàng - Coming soon</div>} />
+        <Route path="/admin/orders" element={<OrderManagementPage />} />
         <Route path="/admin/users" element={<div className="text-sm text-gray-600">Quản lý người dùng - Coming soon</div>} />
       </Route>
     </Routes>

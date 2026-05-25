@@ -398,7 +398,7 @@ export const CartPage: React.FC = () => {
                 <button
                   disabled={selectedIds.size === 0}
                   onClick={() => {
-                    toast.success('Hệ thống đặt hàng đang được liên kết. Cảm ơn bạn đã trải nghiệm!');
+                    navigate('/checkout', { state: { selectedVariantIds: Array.from(selectedIds) } });
                   }}
                   className="w-full py-4 bg-brand-900 hover:bg-brand-850 disabled:opacity-40 disabled:pointer-events-none text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
                 >

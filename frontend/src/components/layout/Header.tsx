@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ShoppingBag, User, Menu, X, LogOut, ChevronDown, ArrowLeft, Heart } from 'lucide-react';
+import { Search, ShoppingBag, User, Menu, X, LogOut, ChevronDown, ArrowLeft, Heart, Bell } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
 import { useAuth } from '../../features/auth/hooks/useAuth.js';
 import { useCategory } from '../../features/category/hooks/useCategory.js';
 import { useProduct } from '../../features/product/hooks/useProduct.js';
 import { useCart } from '../../features/cart/hooks/useCart.js';
 import { useWishlist } from '../../features/wishlist/hooks/useWishlist.js';
+import { useOrder } from '../../features/order/hooks/useOrder.js';
 import type { Category } from '../../features/category/types/index.js';
 import type { Product } from '../../features/product/types/index.js';
 
@@ -16,6 +17,33 @@ export const Header: React.FC = () => {
   const { user, isAuthenticated } = useAuthStore();
   const { logout } = useAuth();
   const navigate = useNavigate();
+
+  // Fetch Notifications
+  const { useGetNotifications, markNotificationsRead, markSingleNotificationRead } = useOrder();
+  const { data: notifResponse } = useGetNotifications();
+  const notifications = notifResponse?.data?.notifications || [];
+  const unreadNotifCount = notifications.filter((n: any) => !n.isRead).length;
+
+  const [notifMenuOpen, setNotifMenuOpen] = useState(false);
+
+  // Dropdown refs
+  const notifRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setNotifMenuOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Fetch cart details
   const { useGetCart } = useCart();
@@ -265,8 +293,85 @@ export const Header: React.FC = () => {
                 </span>
               </button>
 
-              {isAuthenticated && user ? (
-                <div className="relative">
+              {/* Notification Icon & Dropdown */}
+              {isAuthenticated && (
+                <div className="relative" ref={notifRef}>
+                  <button
+                    onClick={() => {
+                      setNotifMenuOpen(!notifMenuOpen);
+                      setUserMenuOpen(false);
+                    }}
+                    className="relative text-brand-600 hover:text-brand-900 transition-colors cursor-pointer"
+                    title="Thông báo"
+                  >
+                    <Bell size={18} strokeWidth={1.5} />
+                    {unreadNotifCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-brand-900 text-white text-[9px] font-semibold rounded-full flex items-center justify-center animate-pulse">
+                        {unreadNotifCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {notifMenuOpen && (
+                    <>
+                      <div className="absolute right-0 top-full mt-4 w-80 bg-white border border-brand-200 rounded-2xl shadow-lg py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="px-4 pb-2 border-b border-brand-100 flex justify-between items-center">
+                          <h4 className="text-[10px] font-bold text-brand-900 uppercase tracking-widest">Thông báo</h4>
+                          {unreadNotifCount > 0 && (
+                            <button
+                              onClick={() => markNotificationsRead.mutate()}
+                              className="text-[10px] text-brand-500 hover:text-brand-900 transition-colors underline font-medium cursor-pointer"
+                            >
+                              Đọc tất cả
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="max-h-64 overflow-y-auto divide-y divide-brand-100/50">
+                          {notifications.length === 0 ? (
+                            <p className="text-[10px] text-brand-400 text-center py-8 font-light">Không có thông báo nào.</p>
+                          ) : (
+                            notifications.map((notif: any) => (
+                              <div
+                                key={notif.id}
+                                onClick={() => {
+                                  if (!notif.isRead) markSingleNotificationRead.mutate(notif.id);
+                                  navigate('/account/orders');
+                                  setNotifMenuOpen(false);
+                                }}
+                                className={`px-4 py-3 hover:bg-brand-50/50 transition-colors cursor-pointer text-left ${!notif.isRead ? 'bg-brand-50/20' : ''}`}
+                              >
+                                <div className="flex justify-between items-start gap-1">
+                                  <h5 className={`text-[11px] ${!notif.isRead ? 'font-bold text-brand-950' : 'font-semibold text-brand-850'}`}>
+                                    {notif.title}
+                                  </h5>
+                                  {!notif.isRead && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-brand-900 flex-shrink-0 mt-1" />
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-brand-500 font-light mt-0.5 leading-relaxed">
+                                  {notif.content}
+                                </p>
+                                <span className="text-[8px] text-brand-400 block mt-1 font-light">
+                                  {new Date(notif.createdAt).toLocaleDateString('vi-VN', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+               {isAuthenticated && user ? (
+                <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center gap-2 text-brand-700 hover:text-brand-900 transition-colors cursor-pointer"
@@ -287,7 +392,6 @@ export const Header: React.FC = () => {
 
                   {userMenuOpen && (
                     <>
-                      <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
                       <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-brand-200 rounded-xl shadow-lg py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="px-4 py-3 border-b border-brand-100">
                           <p className="text-sm font-medium text-brand-900 truncate">{user.fullName}</p>
@@ -337,6 +441,18 @@ export const Header: React.FC = () => {
                         >
                           Ví voucher
                         </Link>
+                        <button
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            setNotifMenuOpen(true);
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-xs uppercase tracking-wider text-brand-600 hover:bg-brand-50 hover:text-brand-900 transition-colors flex items-center justify-between cursor-pointer"
+                        >
+                          <span>Thông báo ({unreadNotifCount})</span>
+                          {unreadNotifCount > 0 && (
+                            <span className="w-2 h-2 rounded-full bg-brand-900" />
+                          )}
+                        </button>
                         <button
                           onClick={() => { setUserMenuOpen(false); logout(); }}
                           className="w-full text-left px-4 py-2.5 text-xs uppercase tracking-wider text-red-500 hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer"
