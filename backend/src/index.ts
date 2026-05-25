@@ -16,6 +16,7 @@ import adminProductRoutes from './routes/v1/admin/product.route.js';
 import clientCartRoutes from './routes/v1/client/cart.route.js';
 import clientProfileRoutes from './routes/v1/client/profile.route.js';
 import clientWishlistRoutes from './routes/v1/client/wishlist.route.js';
+import clientAddressRoutes from './routes/v1/client/address.route.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -44,6 +45,7 @@ app.use('/api/v1/upload', clientUploadRoutes);
 app.use('/api/v1/cart', clientCartRoutes);
 app.use('/api/v1/profile', clientProfileRoutes);
 app.use('/api/v1/wishlist', clientWishlistRoutes);
+app.use('/api/v1/addresses', clientAddressRoutes);
 
 // Basic API v1 status route
 app.get('/api/v1', (_req, res) => {

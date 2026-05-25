@@ -1,4 +1,4 @@
-import { Product } from '../../product/types/index.js';
+import type { Product } from '../../product/types/index.js';
 
 export interface WishlistResponse {
   success: boolean;
