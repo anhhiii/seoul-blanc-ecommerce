@@ -34,6 +34,8 @@ export interface Order {
   note?: string;
   returnReason?: string;
   returnStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
+  voucherCode?: string;
+  discountAmount?: number;
   createdAt: string;
   updatedAt: string;
 }

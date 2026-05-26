@@ -8,8 +8,11 @@ import { toast } from 'sonner';
 import { useCart } from '../features/cart/hooks/useCart.js';
 import { useAddress } from '../features/address/hooks/useAddress.js';
 import { useOrder } from '../features/order/hooks/useOrder.js';
+import { useVoucher } from '../features/voucher/hooks/useVoucher.js';
+import { useAuthStore } from '../store/authStore.js';
 
 export const CheckoutPage: React.FC = () => {
+  const { user } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as { selectedVariantIds?: string[] } | null;
@@ -18,6 +21,7 @@ export const CheckoutPage: React.FC = () => {
   const { useGetCart } = useCart();
   const { useGetAddresses } = useAddress();
   const { createOrder } = useOrder();
+  const { verifyVoucher } = useVoucher();
 
   const { data: cartResponse, isLoading: isCartLoading } = useGetCart();
   const { data: addressResponse, isLoading: isAddressLoading } = useGetAddresses();
@@ -33,6 +37,34 @@ export const CheckoutPage: React.FC = () => {
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [note, setNote] = useState<string>('');
   const [orderSuccess, setOrderSuccess] = useState<any>(null);
+
+  // Voucher state
+  const [voucherCodeInput, setVoucherCodeInput] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; discountAmount: number } | null>(null);
+
+  const handleApplyVoucher = () => {
+    const code = voucherCodeInput.trim().toUpperCase();
+    if (!code) {
+      toast.error('Vui lòng nhập mã giảm giá!');
+      return;
+    }
+    verifyVoucher.mutate(
+      { code, subtotal },
+      {
+        onSuccess: (res: any) => {
+          toast.success(res.message || 'Áp dụng mã giảm giá thành công! 🎟️');
+          setAppliedVoucher({
+            code,
+            discountAmount: res.data?.verification?.discountAmount || 0,
+          });
+        },
+        onError: (err: any) => {
+          const msg = err.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc không đủ điều kiện áp dụng.';
+          toast.error(msg);
+        }
+      }
+    );
+  };
 
   // Address response mapping
   const addresses = addressResponse?.data?.addresses || [];
@@ -60,16 +92,21 @@ export const CheckoutPage: React.FC = () => {
   // Totals
   const subtotal = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingFee = subtotal >= 1000000 || subtotal === 0 ? 0 : 30000;
-  const grandTotal = subtotal + shippingFee;
+  const discount = appliedVoucher ? appliedVoucher.discountAmount : 0;
+  const grandTotal = Math.max(0, subtotal + shippingFee - discount);
 
   const handlePlaceOrder = () => {
+    if (user?.role === 'ADMIN') {
+      toast.error('Tài khoản Admin không được phép mua hàng!');
+      return;
+    }
     if (!selectedAddressId) {
       toast.error('Vui lòng chọn địa chỉ nhận hàng!');
       return;
     }
 
     createOrder.mutate(
-      { addressId: selectedAddressId, note },
+      { addressId: selectedAddressId, note, voucherCode: appliedVoucher?.code },
       {
         onSuccess: (response: any) => {
           setOrderSuccess(response.data.order);
@@ -154,6 +191,15 @@ export const CheckoutPage: React.FC = () => {
         </div>
 
         <h1 className="text-2xl font-light text-brand-900 tracking-wide mb-10">Thanh toán</h1>
+
+        {user?.role === 'ADMIN' && (
+          <div className="mb-8 p-4 bg-red-50 border border-red-200/50 rounded-2xl flex items-center gap-3 text-red-700 text-xs">
+            <AlertCircle size={16} className="flex-shrink-0" />
+            <span>
+              <strong>Cảnh báo:</strong> Bạn đang đăng nhập bằng tài khoản Quản trị viên (ADMIN). Tài khoản Quản trị viên không được phép đặt hàng thực tế trên hệ thống.
+            </span>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
@@ -312,12 +358,55 @@ export const CheckoutPage: React.FC = () => {
                 })}
               </div>
 
+              {/* Voucher Application Field */}
+              <div className="border-t border-brand-100 pt-4 space-y-2">
+                <label className="text-[10px] font-bold text-brand-850 uppercase tracking-widest block">
+                  Mã giảm giá / Coupon
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="NHẬP MÃ GIẢM GIÁ"
+                    value={voucherCodeInput}
+                    onChange={(e) => setVoucherCodeInput(e.target.value)}
+                    disabled={!!appliedVoucher || verifyVoucher.isPending}
+                    className="flex-1 px-3.5 py-2.5 text-xs uppercase tracking-wider rounded-xl bg-brand-50/20 border border-brand-200 text-brand-900 focus:outline-none focus:border-brand-400 placeholder:text-brand-350 disabled:bg-brand-50 disabled:text-brand-400 font-semibold"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyVoucher}
+                    disabled={!!appliedVoucher || verifyVoucher.isPending || !voucherCodeInput.trim()}
+                    className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest bg-brand-900 hover:bg-brand-800 disabled:bg-brand-300 text-white rounded-xl transition-all cursor-pointer"
+                  >
+                    {verifyVoucher.isPending ? '...' : 'Áp dụng'}
+                  </button>
+                </div>
+              </div>
+
               {/* Cost Calculation */}
               <div className="border-t border-brand-100 pt-4 space-y-3">
                 <div className="flex justify-between text-xs text-brand-650 font-light">
                   <span>Tạm tính</span>
                   <span className="font-semibold text-brand-900">{subtotal.toLocaleString('vi-VN')}₫</span>
                 </div>
+                {appliedVoucher && (
+                  <div className="flex justify-between text-xs text-emerald-600 font-light">
+                    <span className="flex items-center gap-1.5">
+                      <span>Mã giảm giá ({appliedVoucher.code})</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAppliedVoucher(null);
+                          setVoucherCodeInput('');
+                        }}
+                        className="text-[10px] text-red-500 underline hover:text-red-700 cursor-pointer font-normal border-none bg-transparent p-0"
+                      >
+                        Gỡ bỏ
+                      </button>
+                    </span>
+                    <span className="font-semibold">-{(appliedVoucher.discountAmount || 0).toLocaleString('vi-VN')}₫</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-xs text-brand-650 font-light">
                   <span>Phí vận chuyển</span>
                   <span className="font-semibold text-brand-900">

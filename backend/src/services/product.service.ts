@@ -52,6 +52,7 @@ export interface ProductQueryFilters {
   sizes?: SizeEnum[];
   page?: number;
   limit?: number;
+  type?: string;
 }
 
 export class ProductService {
@@ -205,13 +206,24 @@ export class ProductService {
       };
     }
 
+    // Apply sorting & filtering based on type
+    let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: 'desc' };
+    if (filters.type === 'NEW') {
+      orderBy = { createdAt: 'desc' };
+    } else if (filters.type === 'BESTSELLER') {
+      orderBy = { sold: 'desc' };
+    } else if (filters.type === 'SALE') {
+      whereClause.discountPrice = { gt: 0 };
+      orderBy = { sold: 'desc' };
+    }
+
     const [total, products] = await Promise.all([
       prisma.product.count({ where: whereClause }),
       prisma.product.findMany({
         where: whereClause,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         include: {
           variants: true,
           category: true,
@@ -333,58 +345,99 @@ export class ProductService {
     }
 
     // 2. Perform database update
-    return prisma.$transaction(async (tx) => {
-      // If variants are supplied, replace existing variants
-      if (input.variants !== undefined) {
-        const slug = updateData.slug ? (updateData.slug as string) : product.slug;
+    const tx = prisma;
+    // If variants are supplied, reconcile instead of blanket delete-and-recreate
+    if (input.variants !== undefined) {
+      const slug = updateData.slug ? (updateData.slug as string) : product.slug;
 
-        const processedVariants = input.variants.map((v) => {
-          const variantSku =
-            v.sku?.trim() || `${slug}-${v.color.toLowerCase()}-${v.size.toLowerCase()}`;
-          return {
-            size: v.size,
-            color: v.color,
-            stock: v.stock,
-            sku: variantSku,
-          };
-        });
-
-        const skus = processedVariants.map((v) => v.sku);
-        const uniqueSkus = new Set(skus);
-        if (uniqueSkus.size !== skus.length) {
-          throw new BadRequestException('Duplicate SKUs in the product variants list');
-        }
-
-        // Verify SKUs do not already exist in database (excluding existing variants of this product)
-        const existingSku = await tx.productVariant.findFirst({
-          where: {
-            sku: { in: skus },
-            productId: { not: id },
-          },
-        });
-        if (existingSku) {
-          throw new BadRequestException(
-            `Product variant with SKU '${existingSku.sku}' already exists in database`
-          );
-        }
-
-        // Delete existing variants
-        await tx.productVariant.deleteMany({ where: { productId: id } });
-
-        // Add create payload to update data
-        updateData.variants = {
-          create: processedVariants,
+      const processedVariants = input.variants.map((v) => {
+        const variantSku =
+          v.sku?.trim() || `${slug}-${v.color.toLowerCase()}-${v.size.toLowerCase()}`;
+        return {
+          size: v.size,
+          color: v.color,
+          stock: v.stock,
+          sku: variantSku,
         };
+      });
+
+      const skus = processedVariants.map((v) => v.sku);
+      const uniqueSkus = new Set(skus);
+      if (uniqueSkus.size !== skus.length) {
+        throw new BadRequestException('Duplicate SKUs in the product variants list');
       }
 
-      return tx.product.update({
-        where: { id },
-        data: updateData,
-        include: {
-          variants: true,
-          category: true,
+      // Verify SKUs do not already exist in database (excluding existing variants of this product)
+      const existingSku = await tx.productVariant.findFirst({
+        where: {
+          sku: { in: skus },
+          productId: { not: id },
         },
       });
+      if (existingSku) {
+        throw new BadRequestException(
+          `Product variant with SKU '${existingSku.sku}' already exists in database`
+        );
+      }
+
+      // Reconcile variants based on unique combination of size and color
+      const currentVariants = product.variants;
+      const toDelete: string[] = [];
+      const toCreate: typeof processedVariants = [];
+      const toUpdate: { id: string; stock: number; sku: string }[] = [];
+
+      for (const curr of currentVariants) {
+        const matched = processedVariants.find(
+          (p) => p.color === curr.color && p.size === curr.size
+        );
+        if (!matched) {
+          toDelete.push(curr.id);
+        } else {
+          if (curr.stock !== matched.stock || curr.sku !== matched.sku) {
+            toUpdate.push({ id: curr.id, stock: matched.stock, sku: matched.sku });
+          }
+        }
+      }
+
+      for (const prodVar of processedVariants) {
+        const matched = currentVariants.find(
+          (c) => c.color === prodVar.color && c.size === prodVar.size
+        );
+        if (!matched) {
+          toCreate.push(prodVar);
+        }
+      }
+
+      // Perform deletions
+      if (toDelete.length > 0) {
+        await tx.productVariant.deleteMany({
+          where: { id: { in: toDelete } },
+        });
+      }
+
+      // Perform updates
+      for (const item of toUpdate) {
+        await tx.productVariant.update({
+          where: { id: item.id },
+          data: { stock: item.stock, sku: item.sku },
+        });
+      }
+
+      // Perform creations via nested update
+      if (toCreate.length > 0) {
+        updateData.variants = {
+          create: toCreate,
+        };
+      }
+    }
+
+    return tx.product.update({
+      where: { id },
+      data: updateData,
+      include: {
+        variants: true,
+        category: true,
+      },
     });
   };
 

@@ -3,8 +3,8 @@ import apiClient from "../../../shared/services/apiClient.js";
 import type { OrderResponse, OrderListResponse } from "../types/index.js";
 
 export const orderApi = {
-  createOrder: (addressId: string, note?: string) =>
-    apiClient.post<any, OrderResponse>("/orders", { addressId, note }),
+  createOrder: (addressId: string, note?: string, voucherCode?: string) =>
+    apiClient.post<any, OrderResponse>("/orders", { addressId, note, voucherCode }),
 
   getMyOrders: () =>
     apiClient.get<any, OrderListResponse>("/orders"),

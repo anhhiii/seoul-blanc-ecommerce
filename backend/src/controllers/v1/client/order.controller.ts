@@ -12,8 +12,11 @@ export class ClientOrderController {
    */
   public create = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user!.id;
-    const { addressId, note } = req.body;
-    const order = await this.orderService.createOrder(userId, addressId, note);
+    if (req.user!.role === 'ADMIN') {
+      return sendResponse(res, 403, 'Tài khoản Admin không được phép mua hàng.');
+    }
+    const { addressId, note, voucherCode } = req.body;
+    const order = await this.orderService.createOrder(userId, addressId, note, voucherCode);
     return sendResponse(res, 201, 'Đặt hàng thành công', { order });
   });
 

@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Ticket,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
 import { useAuth } from '../../features/auth/hooks/useAuth.js';
@@ -31,6 +32,7 @@ export const AdminSidebar: React.FC = () => {
     { label: 'Danh mục', to: '/admin/categories', icon: <FolderTree size={20} strokeWidth={1.5} /> },
     { label: 'Đơn hàng', to: '/admin/orders', icon: <ShoppingCart size={20} strokeWidth={1.5} /> },
     { label: 'Người dùng', to: '/admin/users', icon: <Users size={20} strokeWidth={1.5} /> },
+    { label: 'Vouchers', to: '/admin/vouchers', icon: <Ticket size={20} strokeWidth={1.5} /> },
     { label: 'Cài đặt', to: '/admin/settings', icon: <Settings size={20} strokeWidth={1.5} /> },
   ];
 

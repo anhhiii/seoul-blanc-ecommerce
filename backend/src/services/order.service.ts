@@ -1,12 +1,13 @@
 import { prisma } from '../config/prisma.js';
 import { BadRequestException, NotFoundException } from '../exceptions/index.js';
 import { OrderStatus } from '@prisma/client';
+import { EmailService } from './email.service.js';
 
 export class OrderService {
   /**
    * Client: Place a new order from current cart (COD only)
    */
-  public createOrder = async (userId: string, addressId: string, note?: string) => {
+  public createOrder = async (userId: string, addressId: string, note?: string, voucherCode?: string) => {
     // 1. Fetch User's Cart
     const cart = await prisma.cart.findUnique({
       where: { userId },
@@ -65,10 +66,46 @@ export class OrderService {
       });
     }
 
-    // 5. Calculate Costs (COD method)
+    // 5. Calculate Costs (COD method) & Voucher discount
     const subtotal = cart.totalPrice;
+    let discountAmount = 0;
+    let appliedVoucher = null;
+
+    if (voucherCode) {
+      const voucher = await prisma.voucher.findUnique({
+        where: { code: voucherCode.toUpperCase() },
+      });
+      if (!voucher || voucher.status !== 'ACTIVE') {
+        throw new BadRequestException('Mã giảm giá không hợp lệ hoặc đã hết hạn.');
+      }
+      const now = new Date();
+      if (now < voucher.startDate || now > voucher.endDate) {
+        throw new BadRequestException('Mã giảm giá không trong thời hạn áp dụng.');
+      }
+      if (voucher.usageCount >= voucher.usageLimit) {
+        throw new BadRequestException('Mã giảm giá đã hết lượt sử dụng.');
+      }
+      if (subtotal < voucher.minOrderValue) {
+        throw new BadRequestException(`Đơn hàng từ ${voucher.minOrderValue.toLocaleString('vi-VN')}₫ mới được áp dụng mã này.`);
+      }
+
+      if (voucher.discountType === 'PERCENTAGE' || voucher.discountType === 'PERCENT') {
+        discountAmount = (subtotal * voucher.discountValue) / 100;
+        if (voucher.maxDiscount && discountAmount > voucher.maxDiscount) {
+          discountAmount = voucher.maxDiscount;
+        }
+      } else {
+        discountAmount = voucher.discountValue;
+      }
+
+      if (discountAmount > subtotal) {
+        discountAmount = subtotal;
+      }
+      appliedVoucher = voucher;
+    }
+
     const shippingFee = subtotal >= 1000000 ? 0 : 30000;
-    const total = subtotal + shippingFee;
+    const total = Math.max(0, subtotal - discountAmount) + shippingFee;
 
     // Generate unique orderCode
     const orderCode = `SB-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -98,8 +135,18 @@ export class OrderService {
         shippingAddress,
         phoneNumber: address.phoneNumber,
         note,
+        voucherCode: voucherCode ? voucherCode.toUpperCase() : null,
+        discountAmount: discountAmount,
       },
     });
+
+    // Increment voucher usage
+    if (appliedVoucher) {
+      await prisma.voucher.update({
+        where: { id: appliedVoucher.id },
+        data: { usageCount: { increment: 1 } },
+      });
+    }
 
     // 7. Clear User's Cart
     await prisma.cart.update({
@@ -109,6 +156,18 @@ export class OrderService {
         totalPrice: 0.0,
       },
     });
+
+    // Send order confirmation email in the background
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (user) {
+      EmailService.sendOrderConfirmation(
+        user.email,
+        orderCode,
+        orderItems,
+        total,
+        shippingAddress
+      ).catch((err) => console.error('Send order confirmation email failed:', err));
+    }
 
     return order;
   };
@@ -360,6 +419,20 @@ export class OrderService {
       await this.createNotification(order.userId, title, content);
     }
 
+    // Trigger emails based on newStatus
+    const customer = await prisma.user.findUnique({ where: { id: order.userId } });
+    if (customer) {
+      if (newStatus === 'SHIPPING') {
+        EmailService.sendShippingUpdate(customer.email, order.orderCode).catch((err) =>
+          console.error('Send shipping email failed:', err)
+        );
+      } else if (newStatus === 'RETURNED') {
+        EmailService.sendReturnUpdate(customer.email, order.orderCode, true).catch((err) =>
+          console.error('Send return email failed:', err)
+        );
+      }
+    }
+
     return updatedOrder;
   };
 
@@ -403,6 +476,13 @@ export class OrderService {
         `Yêu cầu trả hàng/hoàn tiền cho đơn hàng ${order.orderCode} của bạn đã được Admin phê duyệt.`
       );
 
+      const customer = await prisma.user.findUnique({ where: { id: order.userId } });
+      if (customer) {
+        EmailService.sendReturnUpdate(customer.email, order.orderCode, true).catch((err) =>
+          console.error('Send return approve email failed:', err)
+        );
+      }
+
       return updated;
     } else {
       const updated = await prisma.order.update({
@@ -417,6 +497,13 @@ export class OrderService {
         'Yêu cầu trả hàng bị từ chối',
         `Yêu cầu trả hàng/hoàn tiền cho đơn hàng ${order.orderCode} của bạn đã bị Admin từ chối.`
       );
+
+      const customer = await prisma.user.findUnique({ where: { id: order.userId } });
+      if (customer) {
+        EmailService.sendReturnUpdate(customer.email, order.orderCode, false).catch((err) =>
+          console.error('Send return reject email failed:', err)
+        );
+      }
 
       return updated;
     }

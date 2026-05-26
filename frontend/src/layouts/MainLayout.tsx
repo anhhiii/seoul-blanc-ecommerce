@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { Header } from '../components/layout/Header.js';
+import { ChatWidget } from '../components/common/ChatWidget.js';
 
 export const MainLayout: React.FC = () => {
   return (
@@ -73,6 +74,7 @@ export const MainLayout: React.FC = () => {
           </div>
         </div>
       </footer>
+      <ChatWidget />
     </div>
   );
 };

@@ -467,14 +467,24 @@ export const ProductManagementPage: React.FC = () => {
                         {/* Stock and variants preview */}
                         <td className="py-4 px-6">
                           <div className="space-y-1">
-                            <span className="text-xs font-medium text-gray-700">
+                            <span className="text-xs font-medium text-gray-700 flex items-center gap-1">
                               Tổng: <strong className="font-semibold text-brand-900">{totalStock}</strong>
+                              {prod.variants.some((v: ProductVariant) => v.stock < 5) && (
+                                <span 
+                                  className="w-2 h-2 rounded-full bg-red-500 animate-pulse inline-block" 
+                                  title="Có biến thể sắp hết hàng (< 5)!" 
+                                />
+                              )}
                             </span>
                             <div className="flex flex-wrap gap-1 max-w-[150px]">
                               {prod.variants.slice(0, 3).map((v: ProductVariant, i: number) => (
                                 <span
                                   key={i}
-                                  className="text-[9px] px-1 bg-gray-100 text-gray-600 rounded border border-gray-150"
+                                  className={`text-[9px] px-1 rounded border ${
+                                    v.stock < 5 
+                                      ? 'bg-red-50 text-red-600 border-red-200 font-semibold' 
+                                      : 'bg-gray-100 text-gray-600 border-gray-150'
+                                  }`}
                                   title={`Màu ${v.color} - Size ${v.size} - Kho: ${v.stock}`}
                                 >
                                   {v.color.slice(0, 3)}-{v.size}({v.stock})

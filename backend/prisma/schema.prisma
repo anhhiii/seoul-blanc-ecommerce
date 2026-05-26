@@ -199,6 +199,8 @@ model Order {
   note            String?
   returnReason    String?
   returnStatus    String?       // PENDING, APPROVED, REJECTED
+  voucherCode     String?
+  discountAmount  Float?        @default(0.0)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -295,4 +297,22 @@ model Notification {
 
   @@index([userId])
   @@map("notifications")
+}
+
+model Voucher {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  code          String   @unique
+  discountType  String   // PERCENTAGE or FIXED
+  discountValue Float
+  minOrderValue Float    @default(0.0)
+  maxDiscount   Float?
+  startDate     DateTime
+  endDate       DateTime
+  usageLimit    Int
+  usageCount    Int      @default(0)
+  status        String   @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("vouchers")
 }

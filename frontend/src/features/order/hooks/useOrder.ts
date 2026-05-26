@@ -28,8 +28,8 @@ export const useOrder = () => {
 
   // Mutation: Create Order
   const createOrderMutation = useMutation({
-    mutationFn: ({ addressId, note }: { addressId: string; note?: string }) =>
-      orderApi.createOrder(addressId, note),
+    mutationFn: ({ addressId, note, voucherCode }: { addressId: string; note?: string; voucherCode?: string }) =>
+      orderApi.createOrder(addressId, note, voucherCode),
     onSuccess: (response) => {
       toast.success(response.message || "Đặt hàng thành công! 🎉");
       queryClient.invalidateQueries({ queryKey: ["cart"] });

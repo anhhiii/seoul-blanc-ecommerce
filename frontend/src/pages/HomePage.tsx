@@ -1,10 +1,11 @@
 import React, { useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Truck, Shield, RefreshCw, Headphones, ImageIcon, ChevronLeft, ChevronRight, Eye, Flame, Heart } from 'lucide-react';
+import { ArrowRight, Truck, Shield, RefreshCw, Headphones, ImageIcon, ChevronLeft, ChevronRight, Eye, Flame, Heart, Ticket, Star } from 'lucide-react';
 import { useProduct } from '../features/product/hooks/useProduct.js';
 import { useCategory } from '../features/category/hooks/useCategory.js';
 import { useAuthStore } from '../store/authStore.js';
 import { useWishlist } from '../features/wishlist/hooks/useWishlist.js';
+import { useVoucher } from '../features/voucher/hooks/useVoucher.js';
 import { toast } from 'sonner';
 import type { Category } from '../features/category/types/index.js';
 import type { Product } from '../features/product/types/index.js';
@@ -59,10 +60,12 @@ export const HomePage: React.FC = () => {
   
   const { useGetCategories } = useCategory();
   const { useGetFeaturedProducts } = useProduct();
+  const { useGetActiveVouchers } = useVoucher();
 
   // Queries
   const { data: categoriesResponse, isLoading: isCategoriesLoading } = useGetCategories();
   const { data: featuredResponse, isLoading: isFeaturedLoading } = useGetFeaturedProducts();
+  const { data: vouchers = [], isLoading: isVouchersLoading } = useGetActiveVouchers();
 
   const dbCategories = categoriesResponse?.data?.categories || [];
   const topSelling = featuredResponse?.data?.topSelling || [];
@@ -126,6 +129,74 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {/* ========== ACTIVE VOUCHERS SECTION ========== */}
+      {!isVouchersLoading && vouchers.length > 0 && (
+        <section className="py-12 bg-white border-b border-brand-200/20">
+          <div className="max-w-7xl mx-auto px-6 sm:px-8">
+            <div className="text-center mb-8">
+              <span className="text-[10px] uppercase tracking-[0.3em] text-brand-650 font-bold flex items-center justify-center gap-1.5">
+                <Ticket size={12} className="text-brand-900" />
+                MÃ GIẢM GIÁ KHUYẾN MÃI
+              </span>
+              <h2 className="text-xl sm:text-2xl font-light text-brand-900 tracking-wider uppercase mt-2">
+                Seoul Blanc <span className="font-semibold">Vouchers</span>
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {vouchers.slice(0, 3).map((voucher: any) => {
+                const isPercent = voucher.discountType === 'PERCENT' || voucher.discountType === 'PERCENTAGE';
+                return (
+                  <div
+                    key={voucher.id}
+                    className="bg-white border border-brand-200/60 rounded-2xl overflow-hidden flex shadow-xs hover:shadow-md transition-all duration-300"
+                  >
+                    {/* Ticket notch left decoration */}
+                    <div className="bg-brand-900 text-white w-24 flex flex-col items-center justify-center p-3 text-center border-r border-dashed border-brand-250 relative flex-shrink-0">
+                      <div className="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-[#FAF8F5] rounded-full border border-brand-200/40"></div>
+                      <div className="absolute bottom-0 right-0 transform translate-x-1/2 translate-y-1/2 w-3 h-3 bg-[#FAF8F5] rounded-full border border-brand-200/40"></div>
+                      
+                      <span className="text-[8px] tracking-wider uppercase font-bold text-brand-200">GIẢM</span>
+                      <span className="text-sm font-extrabold mt-1 whitespace-nowrap">
+                        {isPercent ? `${voucher.discountValue}%` : `${(voucher.discountValue / 1000).toFixed(0)}K`}
+                      </span>
+                    </div>
+
+                    {/* Voucher Details */}
+                    <div className="flex-1 p-4 flex flex-col justify-between text-left space-y-2">
+                      <div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold text-brand-950 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded tracking-wider font-mono">
+                            {voucher.code}
+                          </span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(voucher.code);
+                              toast.success(`Đã sao chép mã: ${voucher.code} 🎟️`);
+                            }}
+                            className="px-2.5 py-1 bg-brand-900 hover:bg-brand-850 text-white text-[9px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer border-none"
+                          >
+                            Lưu mã
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-brand-650 font-light mt-1.5 line-clamp-2 leading-relaxed">
+                          {voucher.description || `Đơn tối thiểu ${voucher.minOrderValue.toLocaleString('vi-VN')}₫.`}
+                        </p>
+                      </div>
+
+                      <div className="text-[9px] text-brand-450 font-light border-t border-brand-100 pt-1.5 flex justify-between">
+                        <span>Đơn tối thiểu: <strong>{voucher.minOrderValue.toLocaleString('vi-VN')}₫</strong></span>
+                        <span>HSD: {new Date(voucher.endDate).toLocaleDateString('vi-VN')}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ========== DYNAMIC CATEGORIES GRID ========== */}
       <section className="py-20">
@@ -296,10 +367,19 @@ export const HomePage: React.FC = () => {
                         {product.categoryName || 'SEOUL BLANC'}
                       </span>
                       <Link to={`/products/${product.slug}`}>
-                        <h4 className="text-xs sm:text-sm text-brand-900 font-light mt-1 mb-2 hover:text-brand-600 transition-colors line-clamp-2 min-h-[32px] sm:min-h-[40px]">
+                        <h4 className="text-xs sm:text-sm text-brand-900 font-light mt-1 mb-1.5 hover:text-brand-600 transition-colors line-clamp-2 min-h-[32px] sm:min-h-[40px]">
                           {product.name}
                         </h4>
                       </Link>
+                      {product.ratingAverage > 0 && (
+                        <div className="flex items-center gap-1 mb-2">
+                          <Star size={10} className="fill-amber-400 text-amber-400" />
+                          <span className="text-[10px] font-semibold text-brand-700">
+                            {product.ratingAverage.toFixed(1)}/5
+                          </span>
+                          <span className="text-[9px] text-brand-400">({product.totalReviews})</span>
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -425,10 +505,19 @@ export const HomePage: React.FC = () => {
                         {product.categoryName || 'SEOUL BLANC'}
                       </span>
                       <Link to={`/products/${product.slug}`}>
-                        <h4 className="text-xs sm:text-sm text-brand-900 font-light mt-1 mb-2 hover:text-brand-600 transition-colors line-clamp-2 min-h-[32px] sm:min-h-[40px]">
+                        <h4 className="text-xs sm:text-sm text-brand-900 font-light mt-1 mb-1.5 hover:text-brand-600 transition-colors line-clamp-2 min-h-[32px] sm:min-h-[40px]">
                           {product.name}
                         </h4>
                       </Link>
+                      {product.ratingAverage > 0 && (
+                        <div className="flex items-center gap-1 mb-2">
+                          <Star size={10} className="fill-amber-400 text-amber-400" />
+                          <span className="text-[10px] font-semibold text-brand-700">
+                            {product.ratingAverage.toFixed(1)}/5
+                          </span>
+                          <span className="text-[9px] text-brand-400">({product.totalReviews})</span>
+                        </div>
+                      )}
                     </div>
 
                     <div>

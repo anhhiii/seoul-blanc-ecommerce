@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Package, ArrowRight, XCircle, RefreshCcw, MapPin, MessageSquare, Calendar, Shield } from 'lucide-react';
+import { Package, ArrowRight, XCircle, RefreshCcw, MapPin, MessageSquare, Calendar, Shield, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useOrder } from '../../features/order/hooks/useOrder.js';
+import { useReview } from '../../features/review/hooks/useReview.js';
 import type { Order, OrderStatus, PaymentStatus } from '../../features/order/types/index.js';
 
 export const OrdersPage: React.FC = () => {
   const { useGetOrders, cancelOrder, refundOrder } = useOrder();
+  const { createReview } = useReview();
   const { data: response, isLoading } = useGetOrders();
   const orders = response?.data?.orders || [];
 
@@ -13,6 +15,37 @@ export const OrdersPage: React.FC = () => {
   const [refundModalOpen, setRefundModalOpen] = useState(false);
   const [selectedRefundOrder, setSelectedRefundOrder] = useState<{ id: string; code: string } | null>(null);
   const [reasonText, setReasonText] = useState('');
+
+  // Review modal states
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<{ id: string; name: string } | null>(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+
+  const handleOpenReviewModal = (productId: string, productName: string) => {
+    setSelectedProduct({ id: productId, name: productName });
+    setRating(5);
+    setComment('');
+    setReviewModalOpen(true);
+  };
+
+  const handleReviewSubmit = () => {
+    if (!selectedProduct) return;
+    createReview.mutate(
+      {
+        productId: selectedProduct.id,
+        rating,
+        comment: comment.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          setReviewModalOpen(false);
+          setSelectedProduct(null);
+          setComment('');
+        },
+      }
+    );
+  };
 
   const handleCancelOrder = (orderId: string, orderCode: string) => {
     if (window.confirm(`Bạn có chắc chắn muốn hủy đơn hàng ${orderCode}?`)) {
@@ -170,7 +203,21 @@ export const OrdersPage: React.FC = () => {
                           />
                         </div>
                         <div className="flex-1 min-w-0 text-xs text-left">
-                          <h4 className="font-light text-brand-900 truncate group-hover:text-brand-700 transition-colors">{item.productName}</h4>
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="font-light text-brand-900 truncate group-hover:text-brand-700 transition-colors">{item.productName}</h4>
+                            {order.orderStatus === 'DELIVERED' && item.productId && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleOpenReviewModal(item.productId!, item.productName);
+                                }}
+                                className="px-2 py-0.5 text-[9px] bg-brand-50 border border-brand-200 hover:bg-brand-900 text-brand-700 hover:text-white rounded transition-all cursor-pointer flex-shrink-0 font-medium"
+                              >
+                                Đánh giá
+                              </button>
+                            )}
+                          </div>
                           <div className="flex gap-2 text-[10px] text-brand-500 font-light mt-0.5">
                             <span>Size: {item.size}</span>
                             <span>Màu: {item.color}</span>
@@ -341,6 +388,76 @@ export const OrdersPage: React.FC = () => {
                 className="flex-1 bg-brand-900 hover:bg-brand-950 text-white rounded-xl py-2.5 text-xs font-medium transition-colors cursor-pointer text-center flex items-center justify-center gap-1.5"
               >
                 {refundOrder.isPending ? 'Đang gửi...' : 'Gửi yêu cầu'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Đánh giá sản phẩm */}
+      {reviewModalOpen && selectedProduct && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-xs transition-opacity duration-200"
+          onClick={() => { setReviewModalOpen(false); setSelectedProduct(null); }}
+        >
+          <div 
+            className="bg-white border border-brand-200/50 rounded-3xl p-6 shadow-xl max-w-md w-full space-y-4 relative animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <h3 className="text-xs font-bold text-brand-900 uppercase tracking-widest">
+                Đánh giá sản phẩm
+              </h3>
+              <p className="text-[10px] text-brand-650 font-semibold mt-1 truncate">{selectedProduct.name}</p>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-[10px] font-bold text-brand-800 uppercase tracking-wider block">
+                Chọn số sao đánh giá <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-1.5 justify-center py-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setRating(star)}
+                    className="p-1 cursor-pointer transition-transform hover:scale-110"
+                  >
+                    <Star
+                      size={32}
+                      className={star <= rating ? "fill-amber-400 text-amber-400" : "text-brand-300"}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-brand-800 uppercase tracking-wider block">
+                Bình luận / Nhận xét (Tùy chọn)
+              </label>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm này..."
+                rows={3}
+                className="w-full bg-brand-50/20 border border-brand-250 rounded-2xl px-4 py-3 text-xs text-brand-800 placeholder:text-brand-400 focus:outline-none focus:border-brand-650 transition-all font-light"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => { setReviewModalOpen(false); setSelectedProduct(null); }}
+                className="flex-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-xl py-2.5 text-xs font-medium transition-colors cursor-pointer text-center"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleReviewSubmit}
+                disabled={createReview.isPending}
+                className="flex-1 bg-brand-900 hover:bg-brand-950 text-white rounded-xl py-2.5 text-xs font-medium transition-colors cursor-pointer text-center flex items-center justify-center gap-1.5"
+              >
+                {createReview.isPending ? 'Đang gửi...' : 'Gửi đánh giá'}
               </button>
             </div>
           </div>

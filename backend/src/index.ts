@@ -20,6 +20,11 @@ import clientAddressRoutes from './routes/v1/client/address.route.js';
 import clientOrderRoutes from './routes/v1/client/order.route.js';
 import adminOrderRoutes from './routes/v1/admin/order.route.js';
 import clientNotificationRoutes from './routes/v1/client/notification.route.js';
+import clientReviewRoutes from './routes/v1/client/review.route.js';
+import adminVoucherRoutes from './routes/v1/admin/voucher.route.js';
+import clientVoucherRoutes from './routes/v1/client/voucher.route.js';
+import adminUserRoutes from './routes/v1/admin/user.route.js';
+import adminAnalyticsRoutes from './routes/v1/admin/analytics.route.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -52,6 +57,11 @@ app.use('/api/v1/addresses', clientAddressRoutes);
 app.use('/api/v1/orders', clientOrderRoutes);
 app.use('/api/v1/admin/orders', adminOrderRoutes);
 app.use('/api/v1/notifications', clientNotificationRoutes);
+app.use('/api/v1/reviews', clientReviewRoutes);
+app.use('/api/v1/admin/vouchers', adminVoucherRoutes);
+app.use('/api/v1/vouchers', clientVoucherRoutes);
+app.use('/api/v1/admin/users', adminUserRoutes);
+app.use('/api/v1/admin/analytics', adminAnalyticsRoutes);
 
 // Basic API v1 status route
 app.get('/api/v1', (_req, res) => {

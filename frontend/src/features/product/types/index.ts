@@ -62,6 +62,7 @@ export interface ProductQueryFilters {
   sizes?: string;
   page?: number;
   limit?: number;
+  type?: string;
 }
 
 export interface CreateProductInput {

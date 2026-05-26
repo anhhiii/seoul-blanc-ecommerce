@@ -25,6 +25,7 @@ export class ClientProductController {
       sizes: req.query.sizes ? ((req.query.sizes as string).split(',') as SizeEnum[]) : undefined,
       page: req.query.page ? Number(req.query.page) : undefined,
       limit: req.query.limit ? Number(req.query.limit) : undefined,
+      type: req.query.type as string | undefined,
     };
     const result = await this.productService.getAllProducts(filters);
     sendResponse(res, 200, 'Products fetched successfully', {

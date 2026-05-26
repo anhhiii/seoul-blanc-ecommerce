@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { Sparkles, AlertTriangle, ArrowRight, X, Heart } from 'lucide-react';
+import { Sparkles, AlertTriangle, ArrowRight, X, Heart, Star } from 'lucide-react';
 import { useProduct } from '../features/product/hooks/useProduct.js';
 import { useCategory } from '../features/category/hooks/useCategory.js';
 import { useAuthStore } from '../store/authStore.js';
@@ -57,7 +57,8 @@ export const ProductsPage: React.FC = () => {
   const selectedCat = categoryIdParam && categories.length > 0
     ? categories.find((c) => c.id === categoryIdParam)
     : null;
-  const activeType = selectedCat ? selectedCat.type : typeParam;
+  const isSpecialType = ['NEW', 'BESTSELLER', 'SALE'].includes(typeParam);
+  const activeType = selectedCat ? selectedCat.type : (isSpecialType ? '' : typeParam);
 
   // Query products with active filters via Infinite Scroll
   const {
@@ -71,6 +72,7 @@ export const ProductsPage: React.FC = () => {
     search: searchParam || undefined,
     categoryId: categoryIdParam || undefined,
     categoryType: !categoryIdParam && activeType ? activeType : undefined,
+    type: isSpecialType ? typeParam : undefined,
     minPrice: minPriceParam ? Number(minPriceParam) : undefined,
     maxPrice: maxPriceParam ? Number(maxPriceParam) : undefined,
     colors: colorsParam || undefined,
@@ -212,11 +214,45 @@ export const ProductsPage: React.FC = () => {
               <span className="text-brand-900 font-semibold">{activeCategory.name}</span>
             </>
           )}
+          {isSpecialType && (
+            <>
+              <span>&gt;</span>
+              <span className="text-brand-900 font-semibold">
+                {typeParam === 'NEW' && 'Sản phẩm mới'}
+                {typeParam === 'BESTSELLER' && 'Bán chạy nhất'}
+                {typeParam === 'SALE' && 'Outlet - Sale'}
+              </span>
+            </>
+          )}
         </div>
+
+        {/* ================= PAGE TITLE / BANNER ================= */}
+        {isSpecialType && (
+          <div className="mb-8 bg-brand-900 text-white rounded-3xl p-8 sm:p-10 relative overflow-hidden shadow-sm animate-in fade-in duration-300">
+            {/* Minimalist Grid Pattern Decoration */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-brand-800/40 via-brand-950/20 to-transparent opacity-60"></div>
+            
+            <div className="relative z-10 max-w-xl">
+              <span className="text-[10px] uppercase tracking-[0.25em] text-brand-300 font-bold mb-2 block">
+                BỘ SƯU TẬP ĐẶC BIỆT
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-light tracking-wider uppercase mb-2">
+                {typeParam === 'NEW' && <>Sản phẩm <span className="font-semibold">mới về</span></>}
+                {typeParam === 'BESTSELLER' && <>Sản phẩm <span className="font-semibold">bán chạy nhất</span></>}
+                {typeParam === 'SALE' && <>Chương trình <span className="font-semibold">Outlet - Sale</span></>}
+              </h2>
+              <p className="text-[11px] text-brand-200/80 font-light leading-relaxed max-w-sm">
+                {typeParam === 'NEW' && 'Cập nhật những xu hướng thời trang tối giản Hàn Quốc mới nhất từ Seoul Blanc.'}
+                {typeParam === 'BESTSELLER' && 'Khám phá các sản phẩm được yêu thích và chọn mua nhiều nhất bởi khách hàng của chúng tôi.'}
+                {typeParam === 'SALE' && 'Cơ hội sở hữu các thiết kế cao cấp với mức giá ưu đãi đặc biệt lên đến 50%.'}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Search Parameter Indicator */}
         {searchParam && (
-          <div className="mb-6 bg-white border border-brand-200/50 rounded-2xl p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="mb-6 bg-white border border-brand-200/50 rounded-2xl p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-200 shadow-xs">
             <span className="text-xs text-brand-700">
               Kết quả tìm kiếm cho từ khóa: <strong className="font-semibold text-brand-900">"{searchParam}"</strong>
             </span>
@@ -229,6 +265,29 @@ export const ProductsPage: React.FC = () => {
               className="text-xs text-brand-400 hover:text-red-500 flex items-center gap-1 cursor-pointer font-medium transition-colors"
             >
               <X size={12} /> Xóa tìm kiếm
+            </button>
+          </div>
+        )}
+
+        {/* Special Type Filter Indicator */}
+        {isSpecialType && (
+          <div className="mb-6 bg-white border border-brand-200/50 rounded-2xl p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-200 shadow-xs">
+            <span className="text-xs text-brand-700">
+              Đang xem bộ sưu tập: <strong className="font-semibold text-brand-900">
+                {typeParam === 'NEW' && 'Sản phẩm mới'}
+                {typeParam === 'BESTSELLER' && 'Bán chạy nhất'}
+                {typeParam === 'SALE' && 'Outlet - Sale'}
+              </strong>
+            </span>
+            <button
+              onClick={() => {
+                const params = new URLSearchParams(searchParams);
+                params.delete('type');
+                setSearchParams(params);
+              }}
+              className="text-xs text-brand-400 hover:text-red-500 flex items-center gap-1 cursor-pointer font-medium transition-colors"
+            >
+              <X size={12} /> Xóa bộ lọc bộ sưu tập
             </button>
           </div>
         )}
@@ -287,7 +346,7 @@ export const ProductsPage: React.FC = () => {
 
         {/* ================= SEARCH & SORTING BAR ================= */}
         <div className="flex items-center justify-between gap-4 mb-8 text-xs">
-          {(categoryIdParam || searchParam || activeType) ? (
+          {(categoryIdParam || searchParam || activeType || isSpecialType) ? (
             <button
               onClick={clearAllFilters}
               className="flex items-center gap-1 text-brand-500 hover:text-brand-900 font-semibold transition-colors cursor-pointer border border-brand-200 bg-white px-3 py-1.5 rounded-lg"
@@ -463,6 +522,26 @@ export const ProductsPage: React.FC = () => {
                             </h4>
                           </Link>
                         </div>
+
+                        {/* Star Rating */}
+                        {prod.ratingAverage > 0 && (
+                          <div className="flex items-center gap-1 mb-2">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                size={10}
+                                className={`${
+                                  star <= Math.round(prod.ratingAverage)
+                                    ? 'fill-amber-400 text-amber-400'
+                                    : 'fill-brand-100 text-brand-200'
+                                }`}
+                              />
+                            ))}
+                            <span className="text-[9px] text-brand-400 ml-1">
+                              ({prod.totalReviews})
+                            </span>
+                          </div>
+                        )}
 
                         <div>
                           <div className="flex items-baseline gap-2 mb-3.5">

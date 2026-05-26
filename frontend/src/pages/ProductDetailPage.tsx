@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, ChevronRight, ShoppingBag, ArrowLeft, ShieldCheck, HelpCircle, ChevronLeft, Minus, Plus, Heart } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ShoppingBag, ArrowLeft, ShieldCheck, HelpCircle, ChevronLeft, Minus, Plus, Heart, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProduct } from '../features/product/hooks/useProduct.js';
 import { useCart } from '../features/cart/hooks/useCart.js';
 import { useAuthStore } from '../store/authStore.js';
 import { useWishlist } from '../features/wishlist/hooks/useWishlist.js';
+import { useReview } from '../features/review/hooks/useReview.js';
 import type { ColorType, SizeType, ProductVariant, Product } from '../features/product/types/index.js';
 
 export const ProductDetailPage: React.FC = () => {
@@ -21,6 +22,9 @@ export const ProductDetailPage: React.FC = () => {
   // Fetch product detail query
   const { data: response, isLoading, isError } = useGetProduct(idOrSlug || '');
   const product = response?.data?.product;
+
+  const { useGetProductReviews } = useReview();
+  const { data: reviews = [], isLoading: isLoadingReviews } = useGetProductReviews(product?.id || '');
 
   const isProductFavorited = product?.id ? wishlistIds.includes(product.id) : false;
 
@@ -248,7 +252,26 @@ export const ProductDetailPage: React.FC = () => {
               <div className="flex items-center gap-4 mt-3 text-xs text-brand-500 font-light">
                 <span className="flex items-center gap-1.5 font-medium"><ShoppingBag size={14} /> Đã bán {product.sold || 0}</span>
                 <span className="w-1 h-1 rounded-full bg-brand-200"></span>
-                <span className="flex items-center gap-1.5"><AlertTriangle size={14} /> Đánh giá {product.ratingAverage || 0} ({product.totalReviews || 0})</span>
+                {/* Star rating display */}
+                <span className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        size={12}
+                        className={`${
+                          star <= Math.round(product.ratingAverage || 0)
+                            ? 'fill-amber-400 text-amber-400'
+                            : 'fill-brand-100 text-brand-200'
+                        }`}
+                      />
+                    ))}
+                  </span>
+                  <span className="font-medium text-brand-700">
+                    {product.ratingAverage ? product.ratingAverage.toFixed(1) : '0.0'}
+                  </span>
+                  <span className="text-brand-400">({product.totalReviews || 0} đánh giá)</span>
+                </span>
               </div>
             </div>
 
@@ -432,6 +455,88 @@ export const ProductDetailPage: React.FC = () => {
           </div>
         </div>
 
+        {/* ========== PRODUCT REVIEWS ========== */}
+        <div className="mt-16 bg-white rounded-3xl border border-brand-200/20 p-6 sm:p-8 shadow-xs">
+          <div className="border-b border-brand-100 pb-5 mb-6 flex flex-wrap justify-between items-center gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-brand-900 tracking-wide">
+                Đánh giá khách hàng
+              </h3>
+              <p className="text-xs text-brand-500 font-light mt-0.5">
+                Xem đánh giá từ các khách hàng đã mua sản phẩm này
+              </p>
+            </div>
+            {product && product.totalReviews > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center text-amber-500 gap-1 font-bold text-lg">
+                  <Star className="fill-amber-400 text-amber-400" size={20} />
+                  <span>{product.ratingAverage}</span>
+                </div>
+                <span className="text-brand-300 text-lg font-light">|</span>
+                <span className="text-xs text-brand-500 font-light">
+                  {product.totalReviews} lượt đánh giá
+                </span>
+              </div>
+            )}
+          </div>
+
+          {isLoadingReviews ? (
+            <div className="text-center py-8">
+              <div className="w-6 h-6 border-2 border-brand-900 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+              <p className="text-xs text-brand-400 font-light">Đang tải đánh giá...</p>
+            </div>
+          ) : reviews.length === 0 ? (
+            <div className="text-center py-10">
+              <p className="text-xs text-brand-400 font-light">
+                Sản phẩm này chưa có đánh giá nào. Hãy mua sản phẩm và chia sẻ cảm nhận đầu tiên của bạn!
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-brand-100 space-y-6">
+              {reviews.map((rev: any) => {
+                const formattedRevDate = new Date(rev.createdAt).toLocaleDateString('vi-VN', {
+                  year: 'numeric',
+                  month: 'numeric',
+                  day: 'numeric',
+                });
+                return (
+                  <div key={rev.id} className="pt-6 first:pt-0 flex gap-4 items-start">
+                    <div className="w-10 h-10 rounded-full bg-brand-100 flex-shrink-0 overflow-hidden flex items-center justify-center border border-brand-200">
+                      {rev.user?.avatar ? (
+                        <img src={rev.user.avatar} alt={rev.user?.fullName} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs font-bold text-brand-700 uppercase">
+                          {rev.user?.fullName?.charAt(0) || 'U'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-1.5 text-left">
+                      <div className="flex items-center justify-between gap-4">
+                        <h4 className="text-xs font-semibold text-brand-950">{rev.user?.fullName || 'Khách hàng ẩn danh'}</h4>
+                        <span className="text-[10px] text-brand-400 font-light">{formattedRevDate}</span>
+                      </div>
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            size={12}
+                            className={star <= rev.rating ? "fill-amber-400 text-amber-400" : "text-brand-250"}
+                          />
+                        ))}
+                      </div>
+                      {rev.comment && (
+                        <p className="text-xs text-brand-700 font-light leading-relaxed pt-0.5">
+                          {rev.comment}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* ========== RELATED PRODUCTS ========== */}
         {relatedProducts.length > 0 && (
           <div className="mt-16 sm:mt-24 border-t border-brand-200/50 pt-16">
@@ -469,6 +574,15 @@ export const ProductDetailPage: React.FC = () => {
                     <h3 className="text-sm font-semibold text-brand-900 line-clamp-2 mb-2 group-hover:text-brand-600 transition-colors">
                       {relatedProd.name}
                     </h3>
+                    {relatedProd.ratingAverage > 0 && (
+                      <div className="flex items-center gap-1 mb-2">
+                        <Star size={10} className="fill-amber-400 text-amber-400" />
+                        <span className="text-[10px] font-semibold text-brand-700">
+                          {relatedProd.ratingAverage.toFixed(1)}/5
+                        </span>
+                        <span className="text-[9px] text-brand-400">({relatedProd.totalReviews})</span>
+                      </div>
+                    )}
                     <div className="mt-auto flex items-center gap-2">
                       <span className="font-bold text-brand-900">
                         {(relatedProd.discountPrice || relatedProd.price).toLocaleString('vi-VN')}₫

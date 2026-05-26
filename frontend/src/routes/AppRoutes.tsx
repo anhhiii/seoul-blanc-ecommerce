@@ -33,6 +33,11 @@ import { VouchersPage } from '../pages/account/VouchersPage.js';
 import { NotificationsPage } from '../pages/account/NotificationsPage.js';
 import { CheckoutPage } from '../pages/CheckoutPage.js';
 import { OrderManagementPage } from '../pages/admin/OrderManagementPage.js';
+import { DashboardPage } from '../pages/admin/DashboardPage.js';
+import { UserManagementPage } from '../pages/admin/UserManagementPage.js';
+import { VoucherManagementPage } from '../pages/admin/VoucherManagementPage.js';
+import { AboutPage } from '../pages/AboutPage.js';
+import { CollectionsPage } from '../pages/CollectionsPage.js';
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -44,6 +49,8 @@ export const AppRoutes: React.FC = () => {
         <Route path="/products/:idOrSlug" element={<ProductDetailPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/cart" element={<CartPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/collections" element={<CollectionsPage />} />
         <Route
           path="/checkout"
           element={
@@ -87,11 +94,12 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       >
-        <Route path="/admin" element={<div className="text-sm text-gray-600">Admin Dashboard - Coming soon</div>} />
+        <Route path="/admin" element={<DashboardPage />} />
         <Route path="/admin/products" element={<ProductManagementPage />} />
         <Route path="/admin/categories" element={<CategoryManagementPage />} />
         <Route path="/admin/orders" element={<OrderManagementPage />} />
-        <Route path="/admin/users" element={<div className="text-sm text-gray-600">Quản lý người dùng - Coming soon</div>} />
+        <Route path="/admin/users" element={<UserManagementPage />} />
+        <Route path="/admin/vouchers" element={<VoucherManagementPage />} />
       </Route>
     </Routes>
   );

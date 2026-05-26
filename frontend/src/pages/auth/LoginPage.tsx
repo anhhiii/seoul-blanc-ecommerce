@@ -92,7 +92,7 @@ export const LoginPage: React.FC = () => {
           </span>
         </div>
 
-        <div className="w-full flex justify-center">
+        <div className="w-full flex flex-col gap-3 justify-center items-center">
           <GoogleLogin
             onSuccess={(credentialResponse) => {
               if (credentialResponse.credential) {
