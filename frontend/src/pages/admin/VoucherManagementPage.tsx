@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Ticket, Plus, Edit2, Trash2, Calendar, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, X } from 'lucide-react';
 import { useVoucher } from '../../features/voucher/hooks/useVoucher.js';
 
 export const VoucherManagementPage: React.FC = () => {

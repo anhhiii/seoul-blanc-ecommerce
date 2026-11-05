@@ -8,7 +8,8 @@ const router = Router();
 const reviewService = new ReviewService();
 const reviewController = new ClientReviewController(reviewService);
 
-// Public route to view reviews by product ID
+// Public route to view reviews by product ID (supports both standard and alias paths)
+router.get('/:productId', reviewController.getByProduct);
 router.get('/product/:productId', reviewController.getByProduct);
 
 // Secure routes for creating/updating reviews

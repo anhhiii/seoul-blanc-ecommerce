@@ -15,8 +15,17 @@ export class ClientOrderController {
     if (req.user!.role === 'ADMIN') {
       return sendResponse(res, 403, 'Tài khoản Admin không được phép mua hàng.');
     }
-    const { addressId, note, voucherCode } = req.body;
-    const order = await this.orderService.createOrder(userId, addressId, note, voucherCode);
+    const { addressId, note, voucherCode, selectedVariantIds, directItem, paymentMethod, useWalletBalance } = req.body;
+    const order = await this.orderService.createOrder(
+      userId,
+      addressId,
+      note,
+      voucherCode,
+      selectedVariantIds,
+      directItem,
+      paymentMethod,
+      useWalletBalance
+    );
     return sendResponse(res, 201, 'Đặt hàng thành công', { order });
   });
 
@@ -55,9 +64,24 @@ export class ClientOrderController {
   public refund = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user!.id;
     const orderId = req.params.id as string;
-    const { returnReason } = req.body;
-    const order = await this.orderService.refundOrder(userId, orderId, returnReason || 'Không có lý do cụ thể');
+    const { returnReason, bankInfo } = req.body;
+    const order = await this.orderService.refundOrder(
+      userId,
+      orderId,
+      returnReason || 'Không có lý do cụ thể',
+      bankInfo
+    );
     return sendResponse(res, 200, 'Gửi yêu cầu trả hàng/hoàn tiền thành công', { order });
+  });
+
+  /**
+   * Check SePay payment status without webhook (Transaction list API)
+   */
+  public checkSePayPayment = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!.id;
+    const orderId = req.params.id as string;
+    const result = await this.orderService.checkSePayPayment(userId, orderId);
+    return sendResponse(res, 200, result.message, result);
   });
 }
 

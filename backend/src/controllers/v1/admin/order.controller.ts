@@ -31,7 +31,12 @@ export class AdminOrderController {
     const orderId = req.params.id as string;
     const { action } = req.body; // 'APPROVE' or 'REJECT'
     const order = await this.orderService.handleReturnRequestAdmin(orderId, action);
-    return sendResponse(res, 200, `Đã ${action === 'APPROVE' ? 'chấp nhận' : 'từ chối'} yêu cầu trả hàng`, { order });
+    return sendResponse(
+      res,
+      200,
+      `Đã ${action === 'APPROVE' ? 'chấp nhận' : 'từ chối'} yêu cầu trả hàng`,
+      { order }
+    );
   });
 }
 

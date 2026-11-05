@@ -2,11 +2,10 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../config/prisma.js';
 import { BadRequestException, UnauthorizedException } from '../exceptions/index.js';
 import { UserStatus } from '@prisma/client';
-import { MailService } from '../shared/services/mail.service.js';
+import { EmailService, IEmailService } from '../shared/services/email.service.js';
 
 export class AuthService {
-  private mailService = new MailService();
-
+  constructor(private readonly emailService: IEmailService = new EmailService()) {}
   // Find a user by their unique email address
   public findUserByEmail = async (email: string) => {
     return prisma.user.findUnique({ where: { email } });
@@ -74,7 +73,7 @@ export class AuthService {
     });
 
     // Send email (asynchronously, won't block response)
-    this.mailService.sendVerificationOtp(email, otp, fullName).catch((err) => {
+    this.emailService.sendVerificationOtp(email, otp, fullName).catch((err) => {
       console.error('Error sending verification email:', err);
     });
 
@@ -142,7 +141,7 @@ export class AuthService {
     });
 
     // Send password reset email
-    this.mailService.sendPasswordResetOtp(email, otp, user.fullName).catch((err) => {
+    this.emailService.sendPasswordResetOtp(email, otp, user.fullName).catch((err) => {
       console.error('Error sending password reset email:', err);
     });
 
@@ -199,9 +198,12 @@ export class AuthService {
       throw new BadRequestException('ID token is required');
     }
     if (idToken === 'mock_google_token' || idToken.startsWith('mock_')) {
-      const mockEmail = idToken.includes('@') ? idToken.replace('mock_', '') : 'seoulblanc.google.user@gmail.com';
+      const mockEmail = idToken.includes('@')
+        ? idToken.replace('mock_', '')
+        : 'seoulblanc.google.user@gmail.com';
       const mockName = 'Seoul Blanc Tester';
-      const mockPicture = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150';
+      const mockPicture =
+        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150';
       let user = await this.findUserByEmail(mockEmail);
       if (!user) {
         const randomPassword = Math.random().toString(36).slice(-16);

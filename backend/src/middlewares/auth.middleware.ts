@@ -36,6 +36,9 @@ export const verifyToken = asyncHandler(
       if (!user) {
         throw new HttpException(401, 'Unauthorized: User does not exist');
       }
+      if (user.status !== 'ACTIVE') {
+        throw new HttpException(403, 'Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động');
+      }
 
       req.user = {
         id: user.id,
@@ -43,7 +46,10 @@ export const verifyToken = asyncHandler(
         role: user.role,
       };
       next();
-    } catch {
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(401, 'Unauthorized: Invalid token');
     }
   }

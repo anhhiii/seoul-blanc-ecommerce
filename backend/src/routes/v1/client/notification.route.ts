@@ -9,6 +9,8 @@ router.use(verifyToken);
 
 router.get('/', notificationController.getNotifications);
 router.post('/mark-all-read', notificationController.markAllRead);
+router.delete('/all', notificationController.deleteAllNotifications);
+router.delete('/:id', notificationController.deleteNotification);
 router.patch('/:id/read', notificationController.markRead);
 
 export default router;

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Heart, Trash2, ArrowRight } from 'lucide-react';
+import { Heart, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useWishlist } from '../../features/wishlist/hooks/useWishlist.js';
+import { ProductCard } from '../../features/product/components/client/index.js';
 import type { Product } from '../../features/product/types/index.js';
 
 export const WishlistPage: React.FC = () => {
@@ -65,80 +66,14 @@ export const WishlistPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {wishlist.map((product: Product) => {
-          const discountPrice = product.discountPrice;
-          const originalPrice = product.price;
-          const displayPrice = discountPrice || originalPrice;
-
-          return (
-            <div
-              key={product.id}
-              className="group flex flex-col bg-[#FAF8F5]/50 border border-brand-200/30 rounded-2xl overflow-hidden hover:shadow-md transition-all duration-300 relative"
-            >
-              {/* Thumbnail */}
-              <Link to={`/products/${product.slug}`} className="aspect-[3/4] relative overflow-hidden bg-brand-50 block">
-                <img
-                  src={product.thumbnail}
-                  alt={product.name}
-                  className="w-full h-full object-cover object-center group-hover:scale-103 transition-transform duration-500"
-                />
-                {discountPrice && (
-                  <span className="absolute top-3 left-3 bg-red-500 text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded shadow-xs">
-                    SALE
-                  </span>
-                )}
-                
-                {/* Remove button */}
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleRemove(product.id);
-                  }}
-                  className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-xs border border-brand-200/35 hover:bg-red-50 hover:text-red-500 hover:border-red-100 flex items-center justify-center text-brand-500 shadow-xs z-10 transition-all duration-200 cursor-pointer"
-                  title="Xóa khỏi danh sách yêu thích"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </Link>
-
-              {/* Product Info */}
-              <div className="p-4 flex-1 flex flex-col justify-between">
-                <div>
-                  <span className="text-[9px] uppercase tracking-wider text-brand-400 font-medium">
-                    {product.categoryName || 'SEOUL BLANC'}
-                  </span>
-                  <Link to={`/products/${product.slug}`}>
-                    <h4 className="text-xs sm:text-sm text-brand-900 font-light mt-1 mb-2 hover:text-brand-600 transition-colors line-clamp-2 min-h-[32px] sm:min-h-[40px]">
-                      {product.name}
-                    </h4>
-                  </Link>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-semibold text-brand-900">
-                      {displayPrice.toLocaleString('vi-VN')}₫
-                    </span>
-                    {discountPrice && (
-                      <span className="text-[11px] text-brand-400 line-through">
-                        {originalPrice.toLocaleString('vi-VN')}₫
-                      </span>
-                    )}
-                  </div>
-
-                  <Link
-                    to={`/products/${product.slug}`}
-                    className="w-full py-2.5 bg-brand-900 hover:bg-brand-850 text-white text-[10px] uppercase tracking-widest font-semibold rounded-xl transition-all flex items-center justify-center gap-1 group/btn"
-                  >
-                    Xem sản phẩm
-                    <ArrowRight size={10} className="group-hover/btn:translate-x-0.5 transition-transform" />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {wishlist.map((product: Product) => (
+          <ProductCard
+            key={product.id}
+            product={product}
+            isFavorited={true}
+            onToggleWishlist={handleRemove}
+          />
+        ))}
       </div>
     </div>
   );

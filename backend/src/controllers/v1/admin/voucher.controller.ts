@@ -11,9 +11,25 @@ export class AdminVoucherController {
    * Create a new voucher
    */
   public create = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { code, discountType, discountValue, minOrderValue, maxDiscount, startDate, endDate, usageLimit } = req.body;
+    const {
+      code,
+      discountType,
+      discountValue,
+      minOrderValue,
+      maxDiscount,
+      startDate,
+      endDate,
+      usageLimit,
+    } = req.body;
 
-    if (!code || !discountType || typeof discountValue !== 'number' || !startDate || !endDate || typeof usageLimit !== 'number') {
+    if (
+      !code ||
+      !discountType ||
+      typeof discountValue !== 'number' ||
+      !startDate ||
+      !endDate ||
+      typeof usageLimit !== 'number'
+    ) {
       return sendResponse(res, 400, 'Vui lòng cung cấp đầy đủ thông tin mã giảm giá');
     }
 
@@ -26,7 +42,7 @@ export class AdminVoucherController {
         maxDiscount,
         startDate,
         endDate,
-        usageLimit
+        usageLimit,
       });
       return sendResponse(res, 201, 'Tạo mã giảm giá thành công', { voucher });
     } catch (error: any) {

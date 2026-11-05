@@ -1,6 +1,5 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../config/prisma.js';
+import { BadRequestException } from '../exceptions/index.js';
 
 export class ReviewService {
   /**
@@ -20,7 +19,9 @@ export class ReviewService {
     );
 
     if (!hasPurchased) {
-      throw new Error('Bạn chỉ có thể đánh giá các sản phẩm đã được giao thành công.');
+      throw new BadRequestException(
+        'Bạn chỉ có thể đánh giá các sản phẩm đã được giao thành công.'
+      );
     }
 
     // 2. Check if a review already exists from this user for this product
@@ -59,7 +60,8 @@ export class ReviewService {
 
     const totalReviews = reviews.length;
     const sumRatings = reviews.reduce((sum, r) => sum + r.rating, 0);
-    const ratingAverage = totalReviews > 0 ? parseFloat((sumRatings / totalReviews).toFixed(1)) : 0.0;
+    const ratingAverage =
+      totalReviews > 0 ? parseFloat((sumRatings / totalReviews).toFixed(1)) : 0.0;
 
     await prisma.product.update({
       where: { id: productId },

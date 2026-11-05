@@ -14,6 +14,7 @@ router.use(verifyToken);
 router.post('/', validate(createOrderSchema), orderController.create);
 router.get('/', orderController.getMyOrders);
 router.get('/:id', orderController.getOrderDetails);
+router.get('/:id/check-payment', orderController.checkSePayPayment);
 router.post('/:id/cancel', orderController.cancel);
 router.post('/:id/refund', orderController.refund);
 

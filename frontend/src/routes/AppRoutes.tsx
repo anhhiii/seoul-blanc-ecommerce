@@ -36,8 +36,10 @@ import { OrderManagementPage } from '../pages/admin/OrderManagementPage.js';
 import { DashboardPage } from '../pages/admin/DashboardPage.js';
 import { UserManagementPage } from '../pages/admin/UserManagementPage.js';
 import { VoucherManagementPage } from '../pages/admin/VoucherManagementPage.js';
+import { SettingsPage } from '../pages/admin/SettingsPage.js';
 import { AboutPage } from '../pages/AboutPage.js';
 import { CollectionsPage } from '../pages/CollectionsPage.js';
+import { NotFoundPage } from '../pages/NotFoundPage.js';
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -100,7 +102,11 @@ export const AppRoutes: React.FC = () => {
         <Route path="/admin/orders" element={<OrderManagementPage />} />
         <Route path="/admin/users" element={<UserManagementPage />} />
         <Route path="/admin/vouchers" element={<VoucherManagementPage />} />
+        <Route path="/admin/settings" element={<SettingsPage />} />
       </Route>
+
+      {/* ===== Fallback 404 Route ===== */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };

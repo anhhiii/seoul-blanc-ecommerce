@@ -1,0 +1,26 @@
+{
+  "6a0c71c4d98e4c2018e24801": {
+    "userId": "6a0c71c4d98e4c2018e24801",
+    "balance": 0,
+    "transactions": [
+      {
+        "id": "WTX_1793896589901_6670",
+        "orderId": "6aecb08d46fe2acc4f2d7799",
+        "orderCode": "SB5895006075",
+        "amount": -2000,
+        "type": "USAGE",
+        "description": "Thanh toán đơn hàng #SB5895006075",
+        "createdAt": "2026-11-05T16:36:29.901Z"
+      },
+      {
+        "id": "WTX_1793896080557_5324",
+        "orderId": "6aeca226eed6bb0eaeb1a139",
+        "orderCode": "SB9013138525",
+        "amount": 2000,
+        "type": "REFUND_RETURN",
+        "description": "Hoàn tiền trả hàng cho đơn hàng #SB9013138525",
+        "createdAt": "2026-11-05T16:28:00.557Z"
+      }
+    ]
+  }
+}

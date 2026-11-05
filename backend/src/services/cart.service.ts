@@ -17,46 +17,55 @@ interface CartData {
 export class CartService {
   /**
    * Helper to populate cart items with current product and variant details
+   * Optimized with DSA: Batch query + Hash Map for O(1) lookups, resolving N+1 database queries
    */
   private populateCartItems = async (cart: CartData) => {
-    if (!cart) return null;
+    if (!cart || !cart.items || cart.items.length === 0) return cart;
 
-    const populatedItems = await Promise.all(
-      cart.items.map(async (item: CartItemData) => {
-        const variant = await prisma.productVariant.findUnique({
-          where: { id: item.productVariantId },
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                thumbnail: true,
-                price: true,
-                discountPrice: true,
-                status: true,
-              },
-            },
+    // DSA Optimization: Batch query all variants in a single round-trip
+    const variantIds = cart.items.map((item) => item.productVariantId);
+    const variants = await prisma.productVariant.findMany({
+      where: { id: { in: variantIds } },
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            thumbnail: true,
+            price: true,
+            discountPrice: true,
+            status: true,
           },
-        });
+        },
+      },
+    });
 
-        return {
-          productVariantId: item.productVariantId,
-          quantity: item.quantity,
-          price: item.price,
-          variant: variant
-            ? {
-                id: variant.id,
-                size: variant.size,
-                color: variant.color,
-                stock: variant.stock,
-                sku: variant.sku,
-                product: variant.product,
-              }
-            : null,
-        };
-      })
-    );
+    // Build Hash Map for O(1) lookup
+    const variantMap = new Map<string, (typeof variants)[0]>();
+    for (const v of variants) {
+      variantMap.set(v.id, v);
+    }
+
+    const populatedItems = cart.items.map((item: CartItemData) => {
+      const variant = variantMap.get(item.productVariantId);
+
+      return {
+        productVariantId: item.productVariantId,
+        quantity: item.quantity,
+        price: item.price,
+        variant: variant
+          ? {
+              id: variant.id,
+              size: variant.size,
+              color: variant.color,
+              stock: variant.stock,
+              sku: variant.sku,
+              product: variant.product,
+            }
+          : null,
+      };
+    });
 
     // Filter out items whose variant/product no longer exists or is inactive
     const validItems = populatedItems.filter(

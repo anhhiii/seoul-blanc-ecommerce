@@ -2,7 +2,16 @@ export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPING' | 'DELIVERED' | '
 
 export type PaymentStatus = 'UNPAID' | 'PAID' | 'FAILED' | 'REFUNDED';
 
-export type PaymentMethod = 'COD' | 'STRIPE' | 'VNPAY';
+export type PaymentMethod = 'COD' | 'STRIPE' | 'VNPAY' | 'SEPAY' | 'BLANC_PAY';
+
+export interface SepayPaymentInfo {
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  amount: number;
+  description: string;
+  qrCodeUrl: string;
+}
 
 export interface OrderItem {
   productVariantId: string;
@@ -36,6 +45,7 @@ export interface Order {
   returnStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
   voucherCode?: string;
   discountAmount?: number;
+  sepayPaymentInfo?: SepayPaymentInfo | null;
   createdAt: string;
   updatedAt: string;
 }

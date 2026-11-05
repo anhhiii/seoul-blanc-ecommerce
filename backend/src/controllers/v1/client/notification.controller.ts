@@ -45,4 +45,25 @@ export class NotificationController {
 
     return sendResponse(res, 200, 'Đã đánh dấu tất cả là đã đọc.', null);
   });
+
+  public deleteAllNotifications = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!.id;
+
+    await prisma.notification.deleteMany({
+      where: { userId },
+    });
+
+    return sendResponse(res, 200, 'Đã xóa tất cả thông báo thành công.', null);
+  });
+
+  public deleteNotification = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const id = req.params.id as string;
+    const userId = req.user!.id;
+
+    await prisma.notification.deleteMany({
+      where: { id, userId },
+    });
+
+    return sendResponse(res, 200, 'Đã xóa thông báo thành công.', null);
+  });
 }

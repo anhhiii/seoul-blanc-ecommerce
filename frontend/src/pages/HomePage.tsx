@@ -1,12 +1,13 @@
 import React, { useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Truck, Shield, RefreshCw, Headphones, ImageIcon, ChevronLeft, ChevronRight, Eye, Flame, Heart, Ticket, Star } from 'lucide-react';
+import { ArrowRight, Truck, Shield, RefreshCw, Headphones, ChevronLeft, ChevronRight, Ticket } from 'lucide-react';
 import { useProduct } from '../features/product/hooks/useProduct.js';
 import { useCategory } from '../features/category/hooks/useCategory.js';
 import { useAuthStore } from '../store/authStore.js';
 import { useWishlist } from '../features/wishlist/hooks/useWishlist.js';
 import { useVoucher } from '../features/voucher/hooks/useVoucher.js';
 import { toast } from 'sonner';
+import { ProductCard } from '../features/product/components/client/index.js';
 import type { Category } from '../features/category/types/index.js';
 import type { Product } from '../features/product/types/index.js';
 
@@ -314,95 +315,14 @@ export const HomePage: React.FC = () => {
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {topSelling.map((product: Product) => (
-                <div
+                <ProductCard
                   key={product.id}
-                  className="snap-start flex-none w-[260px] sm:w-[280px] group flex flex-col bg-[#FAF8F5] rounded-2xl overflow-hidden border border-brand-200/50 hover:shadow-md transition-all duration-300 relative"
-                >
-                  <Link to={`/products/${product.slug}`} className="aspect-[3/4] relative overflow-hidden bg-brand-100 block">
-                    {product.thumbnail ? (
-                      <img
-                        src={product.thumbnail}
-                        alt={product.name}
-                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-brand-50 text-brand-300">
-                        <ImageIcon size={28} />
-                      </div>
-                    )}
-                    {product.discountPrice && (
-                      <span className="absolute top-3 left-3 bg-red-500 text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded">
-                        SALE
-                      </span>
-                    )}
-                    <span className="absolute bottom-3 right-3 bg-brand-900/80 backdrop-blur-xs text-white text-[10px] px-2.5 py-1 rounded-md flex items-center gap-1 font-medium">
-                      <Flame size={12} className="text-amber-400 fill-amber-400" />
-                      Đã bán: {product.sold}
-                    </span>
-                  </Link>
-
-                  {/* Toggle Wishlist Button */}
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleToggleWishlist(product.id);
-                    }}
-                    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-xs border border-brand-200/45 flex items-center justify-center shadow-xs z-10 transition-all duration-200 cursor-pointer hover:bg-white"
-                    title={isFavorited(product.id) ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
-                  >
-                    <Heart
-                      size={14}
-                      className={`transition-colors duration-200 ${
-                        isFavorited(product.id)
-                          ? 'fill-red-500 text-red-500'
-                          : 'text-brand-600 hover:text-red-500'
-                      }`}
-                    />
-                  </button>
-
-                  <div className="p-4 flex-1 flex flex-col justify-between">
-                    <div>
-                      <span className="text-[9px] uppercase tracking-wider text-brand-400 font-medium">
-                        {product.categoryName || 'SEOUL BLANC'}
-                      </span>
-                      <Link to={`/products/${product.slug}`}>
-                        <h4 className="text-xs sm:text-sm text-brand-900 font-light mt-1 mb-1.5 hover:text-brand-600 transition-colors line-clamp-2 min-h-[32px] sm:min-h-[40px]">
-                          {product.name}
-                        </h4>
-                      </Link>
-                      {product.ratingAverage > 0 && (
-                        <div className="flex items-center gap-1 mb-2">
-                          <Star size={10} className="fill-amber-400 text-amber-400" />
-                          <span className="text-[10px] font-semibold text-brand-700">
-                            {product.ratingAverage.toFixed(1)}/5
-                          </span>
-                          <span className="text-[9px] text-brand-400">({product.totalReviews})</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <div className="flex items-baseline gap-2 mb-4">
-                        <span className="text-sm font-semibold text-brand-900">
-                          {(product.discountPrice || product.price).toLocaleString('vi-VN')}₫
-                        </span>
-                        {product.discountPrice && (
-                          <span className="text-xs text-brand-400 line-through">
-                            {product.price.toLocaleString('vi-VN')}₫
-                          </span>
-                        )}
-                      </div>
-
-                      <Link
-                        to={`/products/${product.slug}`}
-                        className="w-full py-2 bg-brand-900 hover:bg-brand-800 text-white text-[11px] uppercase tracking-widest font-semibold rounded-lg transition-colors flex items-center justify-center"
-                      >
-                        Xem chi tiết
-                      </Link>
-                    </div>
-                  </div>
-                </div>
+                  product={product}
+                  isFavorited={isFavorited(product.id)}
+                  onToggleWishlist={handleToggleWishlist}
+                  badgeIcon="flame"
+                  className="snap-start flex-none w-[260px] sm:w-[280px]"
+                />
               ))}
             </div>
           )}
@@ -452,95 +372,13 @@ export const HomePage: React.FC = () => {
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {topViewed.map((product: Product) => (
-                <div
+                <ProductCard
                   key={product.id}
-                  className="snap-start flex-none w-[260px] sm:w-[280px] group flex flex-col bg-white rounded-2xl overflow-hidden border border-brand-200/50 hover:shadow-md transition-all duration-300 relative"
-                >
-                  <Link to={`/products/${product.slug}`} className="aspect-[3/4] relative overflow-hidden bg-brand-100 block">
-                    {product.thumbnail ? (
-                      <img
-                        src={product.thumbnail}
-                        alt={product.name}
-                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-brand-50 text-brand-300">
-                        <ImageIcon size={28} />
-                      </div>
-                    )}
-                    {product.discountPrice && (
-                      <span className="absolute top-3 left-3 bg-red-500 text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded">
-                        SALE
-                      </span>
-                    )}
-                    <span className="absolute bottom-3 right-3 bg-brand-900/80 backdrop-blur-xs text-white text-[10px] px-2.5 py-1 rounded-md flex items-center gap-1 font-medium">
-                      <Eye size={12} className="text-brand-300" />
-                      Lượt xem: {product.views}
-                    </span>
-                  </Link>
-
-                  {/* Toggle Wishlist Button */}
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleToggleWishlist(product.id);
-                    }}
-                    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-xs border border-brand-200/45 flex items-center justify-center shadow-xs z-10 transition-all duration-200 cursor-pointer hover:bg-white"
-                    title={isFavorited(product.id) ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
-                  >
-                    <Heart
-                      size={14}
-                      className={`transition-colors duration-200 ${
-                        isFavorited(product.id)
-                          ? 'fill-red-500 text-red-500'
-                          : 'text-brand-600 hover:text-red-500'
-                      }`}
-                    />
-                  </button>
-
-                  <div className="p-4 flex-1 flex flex-col justify-between">
-                    <div>
-                      <span className="text-[9px] uppercase tracking-wider text-brand-400 font-medium">
-                        {product.categoryName || 'SEOUL BLANC'}
-                      </span>
-                      <Link to={`/products/${product.slug}`}>
-                        <h4 className="text-xs sm:text-sm text-brand-900 font-light mt-1 mb-1.5 hover:text-brand-600 transition-colors line-clamp-2 min-h-[32px] sm:min-h-[40px]">
-                          {product.name}
-                        </h4>
-                      </Link>
-                      {product.ratingAverage > 0 && (
-                        <div className="flex items-center gap-1 mb-2">
-                          <Star size={10} className="fill-amber-400 text-amber-400" />
-                          <span className="text-[10px] font-semibold text-brand-700">
-                            {product.ratingAverage.toFixed(1)}/5
-                          </span>
-                          <span className="text-[9px] text-brand-400">({product.totalReviews})</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <div className="flex items-baseline gap-2 mb-4">
-                        <span className="text-sm font-semibold text-brand-900">
-                          {(product.discountPrice || product.price).toLocaleString('vi-VN')}₫
-                        </span>
-                        {product.discountPrice && (
-                          <span className="text-xs text-brand-400 line-through">
-                            {product.price.toLocaleString('vi-VN')}₫
-                          </span>
-                        )}
-                      </div>
-
-                      <Link
-                        to={`/products/${product.slug}`}
-                        className="w-full py-2 bg-brand-900 hover:bg-brand-800 text-white text-[11px] uppercase tracking-widest font-semibold rounded-lg transition-colors flex items-center justify-center"
-                      >
-                        Xem chi tiết
-                      </Link>
-                    </div>
-                  </div>
-                </div>
+                  product={product}
+                  isFavorited={isFavorited(product.id)}
+                  onToggleWishlist={handleToggleWishlist}
+                  className="snap-start flex-none w-[260px] sm:w-[280px]"
+                />
               ))}
             </div>
           )}

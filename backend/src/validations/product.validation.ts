@@ -22,7 +22,7 @@ export const createProductSchema = z.object({
       name: z
         .string({ required_error: 'Product name is required' })
         .min(2, 'Name must be at least 2 characters')
-        .max(500, 'Name cannot exceed 100 characters'),
+        .max(200, 'Name cannot exceed 200 characters'),
       description: z
         .string({ required_error: 'Product description is required' })
         .min(10, 'Description must be at least 10 characters'),
@@ -59,7 +59,7 @@ export const createProductSchema = z.object({
 export const updateProductSchema = z.object({
   body: z
     .object({
-      name: z.string().min(2).max(100).optional(),
+      name: z.string().min(2).max(200).optional(),
       description: z.string().min(10).optional(),
       categoryId: z.string().regex(objectIdRegex, 'Invalid category ID format').optional(),
       thumbnail: z.string().url().optional(),

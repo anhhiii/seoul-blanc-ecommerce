@@ -1,20 +1,58 @@
 import { prisma } from '../config/prisma.js';
 import { BadRequestException, NotFoundException } from '../exceptions/index.js';
 import { OrderStatus } from '@prisma/client';
-import { EmailService } from './email.service.js';
+import { EmailService, IEmailService } from '../shared/services/email.service.js';
+import { settingService } from './setting.service.js';
+import { walletService } from './wallet.service.js';
 
 export class OrderService {
-  /**
-   * Client: Place a new order from current cart (COD only)
-   */
-  public createOrder = async (userId: string, addressId: string, note?: string, voucherCode?: string) => {
-    // 1. Fetch User's Cart
-    const cart = await prisma.cart.findUnique({
-      where: { userId },
-    });
+  constructor(private readonly emailService: IEmailService = new EmailService()) {}
 
-    if (!cart || cart.items.length === 0) {
-      throw new BadRequestException('Giỏ hàng trống. Vui lòng thêm sản phẩm vào giỏ hàng trước khi đặt hàng.');
+  /**
+   * Client: Place a new order from current cart (COD or SePay) or direct buy
+   */
+  public createOrder = async (
+    userId: string,
+    addressId: string,
+    note?: string,
+    voucherCode?: string,
+    selectedVariantIds?: string[],
+    directItem?: { productVariantId: string; quantity: number },
+    paymentMethod: 'COD' | 'SEPAY' | 'BLANC_PAY' = 'COD',
+    useWalletBalance: boolean = false
+  ) => {
+    let targetItems: Array<{ productVariantId: string; quantity: number; price?: number }> = [];
+    const isDirectBuy = !!directItem;
+    const selectedVariantSet = new Set(selectedVariantIds || []);
+
+    if (isDirectBuy) {
+      targetItems = [
+        {
+          productVariantId: directItem.productVariantId,
+          quantity: directItem.quantity,
+        },
+      ];
+    } else {
+      // 1. Fetch User's Cart
+      const cart = await prisma.cart.findUnique({
+        where: { userId },
+      });
+
+      if (!cart || cart.items.length === 0) {
+        throw new BadRequestException(
+          'Giỏ hàng trống. Vui lòng thêm sản phẩm vào giỏ hàng trước khi đặt hàng.'
+        );
+      }
+
+      // DSA Optimization: Use Set for O(1) membership lookup instead of O(M) Array.prototype.includes
+      targetItems =
+        selectedVariantSet.size > 0
+          ? cart.items.filter((item) => selectedVariantSet.has(item.productVariantId))
+          : cart.items;
+
+      if (targetItems.length === 0) {
+        throw new BadRequestException('Không tìm thấy sản phẩm hợp lệ trong giỏ hàng để đặt hàng.');
+      }
     }
 
     // 2. Fetch User's Selected Address
@@ -28,46 +66,42 @@ export class OrderService {
 
     const shippingAddress = `${address.fullName} - ${address.phoneNumber} | ${address.detail}, ${address.ward}, ${address.district}, ${address.province}`;
 
-    // 3. Check inventory and prepare items detail
-    const itemsData = await Promise.all(
-      cart.items.map(async (item) => {
-        const variant = await prisma.productVariant.findUnique({
-          where: { id: item.productVariantId },
-          include: { product: true },
-        });
+    // 3. DSA Optimization: Batch query + Hash Map to resolve N+1 DB queries
+    const variantIds = targetItems.map((item) => item.productVariantId);
+    const variants = await prisma.productVariant.findMany({
+      where: { id: { in: variantIds } },
+      include: { product: true },
+    });
 
-        if (!variant || !variant.product || variant.product.status !== 'ACTIVE') {
-          throw new BadRequestException(`Sản phẩm hoặc biến thể này hiện không còn hoạt động.`);
-        }
-
-        if (variant.stock < item.quantity) {
-          throw new BadRequestException(
-            `Sản phẩm ${variant.product.name} (Màu: ${variant.color}, Size: ${variant.size}) không đủ hàng trong kho (Còn lại: ${variant.stock}).`
-          );
-        }
-
-        return {
-          variant,
-          quantity: item.quantity,
-          price: item.price,
-        };
-      })
-    );
-
-    // 4. Update Inventory (Deduct stock)
-    for (const itemData of itemsData) {
-      await prisma.productVariant.update({
-        where: { id: itemData.variant.id },
-        data: {
-          stock: {
-            decrement: itemData.quantity,
-          },
-        },
-      });
+    const variantMap = new Map<string, (typeof variants)[0]>();
+    for (const variant of variants) {
+      variantMap.set(variant.id, variant);
     }
 
-    // 5. Calculate Costs (COD method) & Voucher discount
-    const subtotal = cart.totalPrice;
+    const itemsData = targetItems.map((item) => {
+      const variant = variantMap.get(item.productVariantId);
+
+      if (!variant || !variant.product || variant.product.status !== 'ACTIVE') {
+        throw new BadRequestException(`Sản phẩm hoặc biến thể này hiện không còn hoạt động.`);
+      }
+
+      if (variant.stock < item.quantity) {
+        throw new BadRequestException(
+          `Sản phẩm ${variant.product.name} (Màu: ${variant.color}, Size: ${variant.size}) không đủ hàng trong kho (Còn lại: ${variant.stock}).`
+        );
+      }
+
+      const itemPrice = item.price ?? (variant.product.discountPrice ?? variant.product.price);
+
+      return {
+        variant,
+        quantity: item.quantity,
+        price: itemPrice,
+      };
+    });
+
+    // 4. Calculate Costs (COD method) & Voucher discount
+    const subtotal = itemsData.reduce((sum, item) => sum + item.price * item.quantity, 0);
     let discountAmount = 0;
     let appliedVoucher = null;
 
@@ -86,7 +120,9 @@ export class OrderService {
         throw new BadRequestException('Mã giảm giá đã hết lượt sử dụng.');
       }
       if (subtotal < voucher.minOrderValue) {
-        throw new BadRequestException(`Đơn hàng từ ${voucher.minOrderValue.toLocaleString('vi-VN')}₫ mới được áp dụng mã này.`);
+        throw new BadRequestException(
+          `Đơn hàng từ ${voucher.minOrderValue.toLocaleString('vi-VN')}₫ mới được áp dụng mã này.`
+        );
       }
 
       if (voucher.discountType === 'PERCENTAGE' || voucher.discountType === 'PERCENT') {
@@ -104,11 +140,42 @@ export class OrderService {
       appliedVoucher = voucher;
     }
 
-    const shippingFee = subtotal >= 1000000 ? 0 : 30000;
+    const currentSettings = await settingService.getSettings();
+    const shippingFee =
+      subtotal >= currentSettings.freeShippingThreshold ? 0 : currentSettings.standardShippingFee;
     const total = Math.max(0, subtotal - discountAmount) + shippingFee;
 
-    // Generate unique orderCode
-    const orderCode = `SB-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    // Wallet deduction or Blanc Pay check
+    let walletDeduct = 0;
+    let finalPayAmount = total;
+    let initialPaymentStatus: 'UNPAID' | 'PAID' = 'UNPAID';
+    let initialOrderStatus: OrderStatus = 'PENDING';
+    const isBlancPay = paymentMethod === 'BLANC_PAY';
+
+    if (isBlancPay) {
+      const userWallet = walletService.getWallet(userId);
+      if (userWallet.balance < total) {
+        throw new BadRequestException(
+          `Số dư ví Blanc Pay (${userWallet.balance.toLocaleString('vi-VN')}₫) không đủ để thanh toán đơn hàng (${total.toLocaleString('vi-VN')}₫).`
+        );
+      }
+      walletDeduct = total;
+      initialPaymentStatus = 'PAID';
+      initialOrderStatus = 'CONFIRMED';
+    } else if (useWalletBalance) {
+      const userWallet = walletService.getWallet(userId);
+      if (userWallet.balance > 0) {
+        walletDeduct = Math.min(userWallet.balance, total);
+        finalPayAmount = Math.max(0, total - walletDeduct);
+        if (finalPayAmount === 0) {
+          initialPaymentStatus = 'PAID';
+          initialOrderStatus = 'CONFIRMED';
+        }
+      }
+    }
+
+    // Generate unique, alphanumeric orderCode (suitable for bank transfer memo)
+    const orderCode = `SB${Date.now().toString().slice(-6)}${Math.floor(1000 + Math.random() * 9000)}`;
 
     const orderItems = itemsData.map((d) => ({
       productVariantId: d.variant.id,
@@ -121,65 +188,164 @@ export class OrderService {
       price: d.price,
     }));
 
-    // 6. Save Order
-    const order = await prisma.order.create({
-      data: {
-        userId,
-        orderCode,
-        items: orderItems,
-        totalPrice: total,
-        shippingFee,
-        paymentMethod: 'COD',
-        paymentStatus: 'UNPAID',
-        orderStatus: 'PENDING',
-        shippingAddress,
-        phoneNumber: address.phoneNumber,
-        note,
-        voucherCode: voucherCode ? voucherCode.toUpperCase() : null,
-        discountAmount: discountAmount,
-      },
-    });
+    // 5. Execute DB updates inside an interactive transaction for data consistency
+    const order = await prisma.$transaction(async (tx) => {
+      // 5a. Deduct stock & increment product sold counter
+      for (const itemData of itemsData) {
+        await tx.productVariant.update({
+          where: { id: itemData.variant.id },
+          data: {
+            stock: {
+              decrement: itemData.quantity,
+            },
+          },
+        });
 
-    // Increment voucher usage
-    if (appliedVoucher) {
-      await prisma.voucher.update({
-        where: { id: appliedVoucher.id },
-        data: { usageCount: { increment: 1 } },
+        await tx.product.update({
+          where: { id: itemData.variant.productId },
+          data: {
+            sold: {
+              increment: itemData.quantity,
+            },
+          },
+        });
+      }
+
+      const orderNote = isBlancPay
+        ? note ? `${note} | [Ví Blanc Pay]` : '[Ví Blanc Pay]'
+        : note;
+
+      // 5b. Save Order
+      const newOrder = await tx.order.create({
+        data: {
+          userId,
+          orderCode,
+          items: orderItems,
+          totalPrice: finalPayAmount,
+          shippingFee,
+          paymentMethod: isBlancPay ? 'SEPAY' : paymentMethod || 'COD',
+          paymentStatus: initialPaymentStatus,
+          orderStatus: initialOrderStatus,
+          shippingAddress,
+          phoneNumber: address.phoneNumber,
+          note: orderNote,
+          voucherCode: voucherCode ? voucherCode.toUpperCase() : null,
+          discountAmount,
+        },
       });
-    }
 
-    // 7. Clear User's Cart
-    await prisma.cart.update({
-      where: { userId },
-      data: {
-        items: [],
-        totalPrice: 0.0,
-      },
+      // Debit wallet balance if deducted
+      if (walletDeduct > 0) {
+        walletService.debitWallet(
+          userId,
+          walletDeduct,
+          newOrder.id,
+          orderCode,
+          `Thanh toán đơn hàng #${orderCode}`
+        );
+      }
+
+      // 5c. Increment voucher usage
+      if (appliedVoucher) {
+        await tx.voucher.update({
+          where: { id: appliedVoucher.id },
+          data: { usageCount: { increment: 1 } },
+        });
+      }
+
+      // 5d. Update Cart: only if order originated from cart (skip if direct buy)
+      if (!isDirectBuy) {
+        const cart = await tx.cart.findUnique({ where: { userId } });
+        if (cart) {
+          if (selectedVariantSet.size > 0) {
+            const remainingItems = cart.items.filter(
+              (item) => !selectedVariantSet.has(item.productVariantId)
+            );
+            const remainingTotal = remainingItems.reduce(
+              (sum, item) => sum + item.price * item.quantity,
+              0
+            );
+            await tx.cart.update({
+              where: { userId },
+              data: {
+                items: remainingItems,
+                totalPrice: remainingTotal,
+              },
+            });
+          } else {
+            await tx.cart.update({
+              where: { userId },
+              data: {
+                items: [],
+                totalPrice: 0.0,
+              },
+            });
+          }
+        }
+      }
+
+      return newOrder;
     });
 
     // Send order confirmation email in the background
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (user) {
-      EmailService.sendOrderConfirmation(
-        user.email,
-        orderCode,
-        orderItems,
-        total,
-        shippingAddress
-      ).catch((err) => console.error('Send order confirmation email failed:', err));
+      this.emailService
+        .sendOrderConfirmation(user.email, orderCode, orderItems, total, shippingAddress)
+        .catch((err) => console.error('Send order confirmation email failed:', err));
     }
 
-    return order;
+    const sepayPaymentInfo =
+      paymentMethod === 'SEPAY' ? this.getSepayPaymentInfo(orderCode, total) : null;
+
+    return this.formatOrder({
+      ...order,
+      sepayPaymentInfo,
+    });
+  };
+
+  /**
+   * Helper to format order for client (expose BLANC_PAY if flagged in note)
+   */
+  private formatOrder = (order: any) => {
+    if (!order) return order;
+    const isBlancPay = typeof order.note === 'string' && order.note.includes('[Ví Blanc Pay]');
+    return {
+      ...order,
+      paymentMethod: isBlancPay ? 'BLANC_PAY' : order.paymentMethod,
+    };
+  };
+
+  /**
+   * Helper to generate SePay VietQR payment info
+   */
+  public getSepayPaymentInfo = (orderCode: string, total: number) => {
+    const bankName = process.env.SEPAY_BANK_NAME || 'MBBank';
+    const accountNumber = process.env.SEPAY_ACC_NUMBER || '0388888888';
+    const accountName = process.env.SEPAY_ACC_NAME || 'SEOUL BLANC';
+    const cleanDes = orderCode.replace(/[^a-zA-Z0-9]/g, '');
+    const amount = Math.round(total);
+    const qrCodeUrl = `https://qr.sepay.vn/img?bank=${bankName}&acc=${accountNumber}&template=compact&amount=${amount}&des=${cleanDes}`;
+
+    return {
+      bankName,
+      accountNumber,
+      accountName,
+      amount,
+      description: cleanDes,
+      qrCodeUrl,
+    };
   };
 
   /**
    * Client: Fetch personal order history
    */
   public getMyOrders = async (userId: string) => {
-    return prisma.order.findMany({
+    const orders = await prisma.order.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+    return orders.map((o) => this.formatOrder(o));
   };
 
   /**
@@ -198,7 +364,199 @@ export class OrderService {
       throw new BadRequestException('Bạn không có quyền truy cập đơn hàng này.');
     }
 
-    return order;
+    const sepayPaymentInfo =
+      order.paymentMethod === 'SEPAY' && order.paymentStatus === 'UNPAID' && !order.note?.includes('[Ví Blanc Pay]')
+        ? this.getSepayPaymentInfo(order.orderCode, order.totalPrice)
+        : null;
+
+    return this.formatOrder({
+      ...order,
+      sepayPaymentInfo,
+    });
+  };
+
+  /**
+   * Client: Check payment status via SePay Transaction List API (NO WEBHOOK)
+   */
+  public checkSePayPayment = async (userId: string, orderId: string) => {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Đơn hàng không tồn tại.');
+    }
+
+    if (order.userId !== userId) {
+      throw new BadRequestException('Bạn không có quyền truy cập đơn hàng này.');
+    }
+
+    // 1. If already paid, return early
+    if (order.paymentStatus === 'PAID') {
+      return {
+        isPaid: true,
+        order,
+        message: 'Đơn hàng đã được thanh toán thành công!',
+      };
+    }
+
+    // 2. Check if expired (over 10 minutes) and still PENDING -> Auto cancel order
+    const orderCreatedAt = new Date(order.createdAt).getTime();
+    const isExpired = Date.now() - orderCreatedAt > 10 * 60 * 1000;
+    if (isExpired && order.orderStatus === 'PENDING') {
+      const cancelledOrder = await this.cancelOrder(userId, orderId).catch(() => null);
+      return {
+        isPaid: false,
+        isExpired: true,
+        order: cancelledOrder || order,
+        message: 'Đơn hàng đã quá hạn thời gian thanh toán (10 phút) và đã được tự động hủy.',
+      };
+    }
+
+    const rawKey = process.env.SEPAY_API_KEY || '';
+    const apiKey = rawKey.split('\n')[0].replace(/['"\r]/g, '').trim();
+    if (!apiKey) {
+      return {
+        isPaid: false,
+        order,
+        unconfigured: true,
+        message:
+          'Chưa cấu hình SEPAY_API_KEY trong file .env trên server. Vui lòng thêm token API từ SePay.',
+      };
+    }
+
+    try {
+      // 2. Call SePay Transactions API (Supporting v2 API with Bearer token & fallback)
+      const token = apiKey;
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+      };
+
+      let transactions: Array<{
+        amount_in: string | number;
+        transaction_content: string;
+        code?: string | null;
+      }> = [];
+
+      // Endpoints to query: official v2 userapi first
+      const endpoints = [
+        'https://userapi.sepay.vn/v2/transactions?page=1&per_page=50',
+        'https://my.sepay.vn/userapi/transactions/list?limit=50',
+      ];
+
+      let lastErrorStatus = 0;
+      let lastErrorText = '';
+
+      for (const url of endpoints) {
+        try {
+          const res = await fetch(url, { method: 'GET', headers });
+          if (res.ok) {
+            const data = (await res.json()) as any;
+            const list = data?.data || data?.transactions || [];
+            if (Array.isArray(list) && list.length > 0) {
+              transactions = list;
+              break;
+            } else if (Array.isArray(list)) {
+              transactions = list;
+            }
+          } else {
+            lastErrorStatus = res.status;
+            lastErrorText = await res.text().catch(() => '');
+            console.error(`SePay call to ${url} returned HTTP ${res.status}:`, lastErrorText);
+
+            // If 401 with Bearer, try with Apikey prefix as fallback
+            if (res.status === 401) {
+              const resAlt = await fetch(url, {
+                method: 'GET',
+                headers: {
+                  Authorization: `Apikey ${token}`,
+                  'Content-Type': 'application/json',
+                },
+              });
+              if (resAlt.ok) {
+                const dataAlt = (await resAlt.json()) as any;
+                const listAlt = dataAlt?.data || dataAlt?.transactions || [];
+                if (Array.isArray(listAlt)) {
+                  transactions = listAlt;
+                  break;
+                }
+              }
+            }
+          }
+        } catch (fetchErr: any) {
+          console.error(`SePay fetch error for ${url}:`, fetchErr?.message || fetchErr);
+        }
+      }
+
+      if (transactions.length === 0 && lastErrorStatus !== 0 && lastErrorStatus !== 200) {
+        return {
+          isPaid: false,
+          order,
+          message: `Không thể kết nối đến hệ thống SePay (Mã lỗi ${lastErrorStatus}). Vui lòng kiểm tra lại API Key.`,
+        };
+      }
+
+      // Clean target order code (e.g. "sb6092371105")
+      const targetCode = order.orderCode.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      // Check if there is an incoming transaction matching the order
+      const matchedTx = transactions.find((tx) => {
+        const amountIn = parseFloat(String(tx.amount_in || 0));
+        const content = (tx.transaction_content || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const txCode = (tx.code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        const isAmountValid = amountIn >= Math.floor(order.totalPrice);
+        const isContentMatched = content.includes(targetCode) || (txCode && txCode === targetCode);
+
+        return isAmountValid && isContentMatched;
+      });
+
+      if (matchedTx) {
+        // Update Order to PAID & CONFIRMED
+        const updatedOrder = await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            paymentStatus: 'PAID',
+            orderStatus: 'CONFIRMED',
+          },
+        });
+
+        // Send payment confirmation email in the background
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (user) {
+          this.emailService
+            .sendOrderConfirmation(
+              user.email,
+              order.orderCode,
+              order.items,
+              order.totalPrice,
+              order.shippingAddress
+            )
+            .catch((err) => console.error('Send payment confirmation email failed:', err));
+        }
+
+        return {
+          isPaid: true,
+          order: updatedOrder,
+          message: 'Thanh toán SePay thành công! Đơn hàng của bạn đã được thanh toán và xác nhận.',
+        };
+      }
+
+      return {
+        isPaid: false,
+        order,
+        message: 'Hệ thống chưa tìm thấy giao dịch chuyển khoản cho đơn hàng này. Vui lòng kiểm tra lại sau ít phút!',
+      };
+    } catch (error: any) {
+      console.error('Error checking SePay payment:', error);
+      return {
+        isPaid: false,
+        order,
+        message: 'Có lỗi xảy ra khi kiểm tra giao dịch với SePay. Vui lòng thử lại!',
+      };
+    }
   };
 
   /**
@@ -231,10 +589,12 @@ export class OrderService {
     }
 
     if (order.orderStatus !== 'PENDING') {
-      throw new BadRequestException('Chỉ có thể hủy đơn hàng khi trạng thái là CHỜ XÁC NHẬN (PENDING).');
+      throw new BadRequestException(
+        'Chỉ có thể hủy đơn hàng khi trạng thái là CHỜ XÁC NHẬN (PENDING).'
+      );
     }
 
-    // Restore stocks
+    // Restore stocks and sold counter
     for (const item of order.items) {
       await prisma.productVariant.update({
         where: { id: item.productVariantId },
@@ -244,21 +604,51 @@ export class OrderService {
           },
         },
       });
+
+      if (item.productId) {
+        await prisma.product
+          .update({
+            where: { id: item.productId },
+            data: {
+              sold: {
+                decrement: item.quantity,
+              },
+            },
+          })
+          .catch(() => {});
+      }
     }
 
+    // Restore voucher usage if any
+    if (order.voucherCode) {
+      await prisma.voucher
+        .updateMany({
+          where: { code: order.voucherCode, usageCount: { gt: 0 } },
+          data: { usageCount: { decrement: 1 } },
+        })
+        .catch(() => {});
+    }
+
+    const isPaid = order.paymentStatus === 'PAID';
     const updated = await prisma.order.update({
       where: { id: orderId },
       data: {
         orderStatus: 'CANCELLED',
+        paymentStatus: isPaid ? 'REFUNDED' : order.paymentStatus,
       },
     });
 
-    // Notify user
-    await this.createNotification(
-      userId,
-      'Bạn đã hủy đơn hàng thành công',
-      `Đơn hàng ${order.orderCode} của bạn đã được hủy thành công.`
-    );
+    // Auto refund to user's wallet if the order was already paid
+    if (isPaid && order.totalPrice > 0) {
+      walletService.creditRefund(
+        userId,
+        order.totalPrice,
+        order.id,
+        order.orderCode,
+        `Hoàn tiền do hủy đơn hàng #${order.orderCode}`,
+        'REFUND_CANCEL'
+      );
+    }
 
     return updated;
   };
@@ -266,7 +656,12 @@ export class OrderService {
   /**
    * Client: Request refund / return (Only if delivered successfully)
    */
-  public refundOrder = async (userId: string, orderId: string, returnReason: string) => {
+  public refundOrder = async (
+    userId: string,
+    orderId: string,
+    returnReason: string,
+    bankInfo?: { bankName?: string; accountNumber?: string; accountName?: string }
+  ) => {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
     });
@@ -280,7 +675,9 @@ export class OrderService {
     }
 
     if (order.orderStatus !== 'DELIVERED') {
-      throw new BadRequestException('Chỉ có thể trả hàng hoàn tiền khi đơn hàng đã GIAO THÀNH CÔNG (DELIVERED).');
+      throw new BadRequestException(
+        'Chỉ có thể trả hàng hoàn tiền khi đơn hàng đã GIAO THÀNH CÔNG (DELIVERED).'
+      );
     }
 
     if (order.returnStatus === 'PENDING') {
@@ -288,7 +685,14 @@ export class OrderService {
     }
 
     if (order.returnStatus === 'APPROVED') {
-      throw new BadRequestException('Yêu cầu trả hàng hoàn tiền của bạn đã được chấp nhận trước đó.');
+      throw new BadRequestException(
+        'Yêu cầu trả hàng hoàn tiền của bạn đã được chấp nhận trước đó.'
+      );
+    }
+
+    let finalReason = returnReason;
+    if (bankInfo?.bankName && bankInfo?.accountNumber) {
+      finalReason += ` | TK nhận hoàn tiền: ${bankInfo.bankName} - STK: ${bankInfo.accountNumber} (${bankInfo.accountName || ''})`;
     }
 
     // Save return request, wait for Admin approval
@@ -296,16 +700,9 @@ export class OrderService {
       where: { id: orderId },
       data: {
         returnStatus: 'PENDING',
-        returnReason,
+        returnReason: finalReason,
       },
     });
-
-    // Notify user
-    await this.createNotification(
-      userId,
-      'Đã gửi yêu cầu trả hàng/hoàn tiền',
-      `Yêu cầu trả hàng hoàn tiền cho đơn hàng ${order.orderCode} đã được gửi và đang chờ Admin xét duyệt.`
-    );
 
     return updatedOrder;
   };
@@ -314,7 +711,7 @@ export class OrderService {
    * Admin: List all orders in system
    */
   public getAllOrdersAdmin = async () => {
-    return prisma.order.findMany({
+    const orders = await prisma.order.findMany({
       include: {
         user: {
           select: {
@@ -325,6 +722,7 @@ export class OrderService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    return orders.map((o) => this.formatOrder(o));
   };
 
   /**
@@ -351,20 +749,58 @@ export class OrderService {
     const isNewTerminated = ['CANCELLED', 'RETURNED'].includes(newStatus);
 
     if (isOldLive && isNewTerminated) {
-      // Restore stocks
+      // Restore stocks and sold counter
       for (const item of order.items) {
         await prisma.productVariant.update({
           where: { id: item.productVariantId },
           data: { stock: { increment: item.quantity } },
         });
+
+        if (item.productId) {
+          await prisma.product
+            .update({
+              where: { id: item.productId },
+              data: { sold: { decrement: item.quantity } },
+            })
+            .catch(() => {});
+        }
+      }
+
+      // Restore voucher usage count if cancelled/returned
+      if (order.voucherCode) {
+        await prisma.voucher
+          .updateMany({
+            where: { code: order.voucherCode, usageCount: { gt: 0 } },
+            data: { usageCount: { decrement: 1 } },
+          })
+          .catch(() => {});
       }
     } else if (isOldTerminated && isNewLive) {
-      // Re-deduct stocks
+      // Re-deduct stocks and increment sold counter
       for (const item of order.items) {
         await prisma.productVariant.update({
           where: { id: item.productVariantId },
           data: { stock: { decrement: item.quantity } },
         });
+
+        if (item.productId) {
+          await prisma.product
+            .update({
+              where: { id: item.productId },
+              data: { sold: { increment: item.quantity } },
+            })
+            .catch(() => {});
+        }
+      }
+
+      // Re-increment voucher usage
+      if (order.voucherCode) {
+        await prisma.voucher
+          .updateMany({
+            where: { code: order.voucherCode },
+            data: { usageCount: { increment: 1 } },
+          })
+          .catch(() => {});
       }
     }
 
@@ -386,50 +822,17 @@ export class OrderService {
       data: dataToUpdate,
     });
 
-    // Send Notification to user
-    let title = '';
-    let content = '';
-
-    switch (newStatus) {
-      case 'CONFIRMED':
-        title = 'Đơn hàng đã được xác nhận';
-        content = `Đơn hàng ${order.orderCode} của bạn đã được Admin xác nhận thành công.`;
-        break;
-      case 'SHIPPING':
-        title = 'Đơn hàng đang được giao';
-        content = `Đơn hàng ${order.orderCode} của bạn đang được giao tới địa chỉ nhận hàng.`;
-        break;
-      case 'DELIVERED':
-        title = 'Đơn hàng giao thành công';
-        content = `Đơn hàng ${order.orderCode} của bạn đã được giao thành công. Cảm ơn bạn đã mua sắm!`;
-        break;
-      case 'RETURNED':
-        title = 'Đơn hàng trả hàng/hoàn tiền';
-        content = `Yêu cầu hoàn trả cho đơn hàng ${order.orderCode} đã được hoàn tất thành công.`;
-        break;
-      case 'CANCELLED':
-        title = 'Đơn hàng bị hủy';
-        content = `Đơn hàng ${order.orderCode} của bạn đã bị hủy bởi Admin.`;
-        break;
-      default:
-        break;
-    }
-
-    if (title && content) {
-      await this.createNotification(order.userId, title, content);
-    }
-
     // Trigger emails based on newStatus
     const customer = await prisma.user.findUnique({ where: { id: order.userId } });
     if (customer) {
       if (newStatus === 'SHIPPING') {
-        EmailService.sendShippingUpdate(customer.email, order.orderCode).catch((err) =>
-          console.error('Send shipping email failed:', err)
-        );
+        this.emailService
+          .sendShippingUpdate(customer.email, order.orderCode)
+          .catch((err) => console.error('Send shipping email failed:', err));
       } else if (newStatus === 'RETURNED') {
-        EmailService.sendReturnUpdate(customer.email, order.orderCode, true).catch((err) =>
-          console.error('Send return email failed:', err)
-        );
+        this.emailService
+          .sendReturnUpdate(customer.email, order.orderCode, true)
+          .catch((err) => console.error('Send return email failed:', err));
       }
     }
 
@@ -453,22 +856,54 @@ export class OrderService {
     }
 
     if (action === 'APPROVE') {
-      // Restore stocks
+      // Restore stocks and sold counter
       for (const item of order.items) {
         await prisma.productVariant.update({
           where: { id: item.productVariantId },
           data: { stock: { increment: item.quantity } },
         });
+
+        if (item.productId) {
+          await prisma.product
+            .update({
+              where: { id: item.productId },
+              data: { sold: { decrement: item.quantity } },
+            })
+            .catch(() => {});
+        }
       }
 
+      // Restore voucher usage count if returned
+      if (order.voucherCode) {
+        await prisma.voucher
+          .updateMany({
+            where: { code: order.voucherCode, usageCount: { gt: 0 } },
+            data: { usageCount: { decrement: 1 } },
+          })
+          .catch(() => {});
+      }
+
+      const isPaid = order.paymentStatus === 'PAID';
       const updated = await prisma.order.update({
         where: { id: orderId },
         data: {
           orderStatus: 'RETURNED',
-          paymentStatus: 'REFUNDED',
+          paymentStatus: isPaid ? 'REFUNDED' : order.paymentStatus,
           returnStatus: 'APPROVED',
         },
       });
+
+      // Auto refund to user's wallet if the order was paid
+      if (isPaid && order.totalPrice > 0) {
+        walletService.creditRefund(
+          order.userId,
+          order.totalPrice,
+          order.id,
+          order.orderCode,
+          `Hoàn tiền trả hàng cho đơn hàng #${order.orderCode}`,
+          'REFUND_RETURN'
+        );
+      }
 
       await this.createNotification(
         order.userId,
@@ -478,9 +913,9 @@ export class OrderService {
 
       const customer = await prisma.user.findUnique({ where: { id: order.userId } });
       if (customer) {
-        EmailService.sendReturnUpdate(customer.email, order.orderCode, true).catch((err) =>
-          console.error('Send return approve email failed:', err)
-        );
+        this.emailService
+          .sendReturnUpdate(customer.email, order.orderCode, true)
+          .catch((err) => console.error('Send return approve email failed:', err));
       }
 
       return updated;
@@ -500,9 +935,9 @@ export class OrderService {
 
       const customer = await prisma.user.findUnique({ where: { id: order.userId } });
       if (customer) {
-        EmailService.sendReturnUpdate(customer.email, order.orderCode, false).catch((err) =>
-          console.error('Send return reject email failed:', err)
-        );
+        this.emailService
+          .sendReturnUpdate(customer.email, order.orderCode, false)
+          .catch((err) => console.error('Send return reject email failed:', err));
       }
 
       return updated;

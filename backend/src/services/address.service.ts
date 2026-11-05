@@ -1,5 +1,5 @@
 import { prisma } from '../config/prisma.js';
-import { BadRequestException, NotFoundException } from '../exceptions/index.js';
+import { NotFoundException } from '../exceptions/index.js';
 
 export class AddressService {
   /**
@@ -8,10 +8,7 @@ export class AddressService {
   public getAddresses = async (userId: string) => {
     return await prisma.address.findMany({
       where: { userId },
-      orderBy: [
-        { isDefault: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
     });
   };
 

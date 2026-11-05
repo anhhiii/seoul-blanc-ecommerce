@@ -1,6 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ShoppingBag, User, Menu, X, LogOut, ChevronDown, ArrowLeft, Heart, Bell } from 'lucide-react';
+import {
+  Search,
+  ShoppingBag,
+  User,
+  Menu,
+  X,
+  LogOut,
+  ChevronDown,
+  ArrowLeft,
+  ArrowRight,
+  Heart,
+  Bell,
+  Trash2,
+  Wallet,
+  Eye,
+  EyeOff,
+  Sparkles,
+} from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
 import { useAuth } from '../../features/auth/hooks/useAuth.js';
 import { useCategory } from '../../features/category/hooks/useCategory.js';
@@ -8,6 +25,7 @@ import { useProduct } from '../../features/product/hooks/useProduct.js';
 import { useCart } from '../../features/cart/hooks/useCart.js';
 import { useWishlist } from '../../features/wishlist/hooks/useWishlist.js';
 import { useOrder } from '../../features/order/hooks/useOrder.js';
+import { useWallet } from '../../features/wallet/hooks/useWallet.js';
 import type { Category } from '../../features/category/types/index.js';
 import type { Product } from '../../features/product/types/index.js';
 
@@ -19,16 +37,33 @@ export const Header: React.FC = () => {
   const navigate = useNavigate();
 
   // Fetch Notifications
-  const { useGetNotifications, markNotificationsRead, markSingleNotificationRead } = useOrder();
+  const {
+    useGetNotifications,
+    markNotificationsRead,
+    markSingleNotificationRead,
+    deleteAllNotifications,
+    deleteNotification,
+  } = useOrder();
   const { data: notifResponse } = useGetNotifications();
   const notifications = notifResponse?.data?.notifications || [];
   const unreadNotifCount = notifications.filter((n: any) => !n.isRead).length;
 
   const [notifMenuOpen, setNotifMenuOpen] = useState(false);
 
+  // Wallet state
+  const { useGetWallet } = useWallet();
+  const { data: wallet } = useGetWallet();
+  const walletBalance = wallet?.balance || 0;
+  const walletTransactions = wallet?.transactions || [];
+  const [walletMenuOpen, setWalletMenuOpen] = useState(false);
+  const [hideBalance, setHideBalance] = useState<boolean>(() => {
+    return localStorage.getItem('blanc_pay_hide_balance') === 'true';
+  });
+
   // Dropdown refs
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const walletRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -37,6 +72,9 @@ export const Header: React.FC = () => {
       }
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setUserMenuOpen(false);
+      }
+      if (walletRef.current && !walletRef.current.contains(event.target as Node)) {
+        setWalletMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -141,15 +179,18 @@ export const Header: React.FC = () => {
           <div className="flex items-center justify-between h-16 lg:h-20">
 
             {/* Logo */}
-            <Link to="/" className="flex-shrink-0 group">
-              <h1 className="text-xl lg:text-2xl font-semibold tracking-[0.2em] text-brand-900 uppercase transition-colors group-hover:text-brand-700">
+            <Link to="/" className="flex-shrink-0 group flex flex-col items-start">
+              <h1 className="font-editorial text-2xl lg:text-[26px] tracking-[0.22em] font-normal text-brand-950 uppercase transition-all duration-300 group-hover:opacity-75">
                 SEOUL BLANC
               </h1>
+              <span className="text-[8px] uppercase tracking-[0.4em] font-light text-brand-400 -mt-1 hidden sm:block">
+                Atelier · Seoul
+              </span>
             </Link>
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center h-full">
-              <ul className="flex items-center gap-8 h-full">
+              <ul className="flex items-center gap-9 h-full">
                 {navLinks.map((link) => {
                   const isProductTab = link.label === 'Sản phẩm';
 
@@ -157,7 +198,7 @@ export const Header: React.FC = () => {
                     <li key={link.to} className={`h-full flex items-center ${isProductTab ? 'group' : ''}`}>
                       <Link
                         to={link.to}
-                        className="text-xs uppercase tracking-[0.15em] font-medium text-brand-600 hover:text-brand-900 transition-colors duration-200 py-4"
+                        className="text-[11px] uppercase tracking-[0.2em] font-medium text-brand-700 hover:text-brand-950 transition-colors duration-200 py-4 relative after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[1.5px] after:bg-brand-900 hover:after:w-full after:transition-all after:duration-300"
                       >
                         {link.label}
                       </Link>
@@ -293,6 +334,142 @@ export const Header: React.FC = () => {
                 </span>
               </button>
 
+              {/* Blanc Pay Wallet Pill & Dropdown Tab */}
+              {isAuthenticated && (
+                <div className="relative" ref={walletRef}>
+                  <button
+                    onClick={() => {
+                      setWalletMenuOpen(!walletMenuOpen);
+                      setNotifMenuOpen(false);
+                      setUserMenuOpen(false);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs transition-all cursor-pointer ${
+                      walletMenuOpen
+                        ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
+                        : 'bg-brand-50/70 hover:bg-brand-100/80 border-brand-200/70 text-brand-900'
+                    }`}
+                    title="Ví Seoul Blanc Pay"
+                  >
+                    <Wallet size={13} className={walletMenuOpen ? 'text-amber-300' : 'text-brand-900'} />
+                    <span className="font-editorial text-xs tracking-wider font-semibold hidden xl:inline">
+                      Ví Blanc:
+                    </span>
+                    <span className="font-bold text-[11px]">
+                      {hideBalance ? '••••••' : `${walletBalance.toLocaleString('vi-VN')}₫`}
+                    </span>
+                    <ChevronDown
+                      size={12}
+                      className={`transition-transform duration-200 ${walletMenuOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {walletMenuOpen && (
+                    <div className="absolute right-0 top-full mt-3 w-80 bg-white border border-brand-200 rounded-3xl shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-200 space-y-3.5">
+                      {/* Top Bar of Dropdown */}
+                      <div className="flex items-center justify-between border-b border-brand-100 pb-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <Wallet size={14} className="text-brand-900" />
+                          <h4 className="text-[10px] font-bold text-brand-900 uppercase tracking-widest">
+                            Ví Blanc Pay
+                          </h4>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setHideBalance((prev) => {
+                              const next = !prev;
+                              localStorage.setItem('blanc_pay_hide_balance', String(next));
+                              return next;
+                            });
+                          }}
+                          className="flex items-center gap-1 text-[10px] font-semibold text-brand-600 hover:text-brand-950 px-2 py-0.5 rounded-full hover:bg-brand-50 transition-colors cursor-pointer"
+                        >
+                          {hideBalance ? <Eye size={12} /> : <EyeOff size={12} />}
+                          {hideBalance ? 'Xem số dư' : 'Ẩn số dư'}
+                        </button>
+                      </div>
+
+                      {/* Luxury Black Card Preview */}
+                      <div className="luxury-card-dark text-white rounded-2xl p-4 relative overflow-hidden shadow-md">
+                        <div className="flex items-center justify-between text-[10px] text-brand-300 font-medium">
+                          <span>Số dư ví hiện tại</span>
+                          <span className="px-2 py-0.5 bg-white/10 rounded-full border border-white/15 text-[9px] text-gold-300 flex items-center gap-1">
+                            <Sparkles size={8} /> VIP Member
+                          </span>
+                        </div>
+                        <div className="font-editorial text-2xl font-normal tracking-wide text-white mt-2">
+                          {hideBalance ? (
+                            <span className="tracking-widest">•••••••• ₫</span>
+                          ) : (
+                            <span>{walletBalance.toLocaleString('vi-VN')}₫</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-brand-400 font-light mt-1.5 leading-relaxed">
+                          Tự động nhận tiền hoàn 100% khi hủy hoặc hoàn trả đơn hàng.
+                        </p>
+                      </div>
+
+                      {/* Recent transactions list */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-brand-400 px-1">
+                          <span>Giao dịch ví gần nhất</span>
+                          <span className="font-normal lowercase">{walletTransactions.length} GD</span>
+                        </div>
+
+                        {walletTransactions.length === 0 ? (
+                          <div className="p-3 text-center text-[10px] text-brand-400 font-light bg-brand-50/30 rounded-xl">
+                            Chưa có giao dịch biến động số dư ví nào.
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5 max-h-36 overflow-y-auto pr-0.5">
+                            {walletTransactions.slice(0, 3).map((tx: any) => (
+                              <div
+                                key={tx.id}
+                                className="flex items-center justify-between p-2 rounded-xl bg-brand-50/40 border border-brand-100 text-xs"
+                              >
+                                <div className="space-y-0.5 pr-2 truncate">
+                                  <span className="font-medium text-brand-900 block truncate text-[11px]">
+                                    {tx.description}
+                                  </span>
+                                  <span className="text-[9px] text-brand-400">
+                                    {new Date(tx.createdAt).toLocaleDateString('vi-VN', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </span>
+                                </div>
+                                <span
+                                  className={`font-bold text-[11px] flex-shrink-0 ${
+                                    tx.amount >= 0 ? 'text-emerald-600' : 'text-amber-700'
+                                  }`}
+                                >
+                                  {tx.amount >= 0
+                                    ? `+${tx.amount.toLocaleString('vi-VN')}₫`
+                                    : `${tx.amount.toLocaleString('vi-VN')}₫`}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Link to profile wallet */}
+                      <button
+                        onClick={() => {
+                          setWalletMenuOpen(false);
+                          navigate('/account/profile');
+                        }}
+                        className="w-full py-2.5 bg-brand-900 hover:bg-brand-850 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+                      >
+                        Quản lý chi tiết Ví trong Hồ sơ <ArrowRight size={11} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Notification Icon & Dropdown */}
               {isAuthenticated && (
                 <div className="relative" ref={notifRef}>
@@ -317,14 +494,25 @@ export const Header: React.FC = () => {
                       <div className="absolute right-0 top-full mt-4 w-80 bg-white border border-brand-200 rounded-2xl shadow-lg py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="px-4 pb-2 border-b border-brand-100 flex justify-between items-center">
                           <h4 className="text-[10px] font-bold text-brand-900 uppercase tracking-widest">Thông báo</h4>
-                          {unreadNotifCount > 0 && (
-                            <button
-                              onClick={() => markNotificationsRead.mutate()}
-                              className="text-[10px] text-brand-500 hover:text-brand-900 transition-colors underline font-medium cursor-pointer"
-                            >
-                              Đọc tất cả
-                            </button>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {unreadNotifCount > 0 && (
+                              <button
+                                onClick={() => markNotificationsRead.mutate()}
+                                className="text-[10px] text-brand-500 hover:text-brand-900 transition-colors underline font-medium cursor-pointer"
+                              >
+                                Đọc tất cả
+                              </button>
+                            )}
+                            {notifications.length > 0 && (
+                              <button
+                                onClick={() => deleteAllNotifications.mutate()}
+                                className="text-[10px] text-red-500 hover:text-red-700 transition-colors font-medium cursor-pointer flex items-center gap-1"
+                                title="Xóa toàn bộ thông báo"
+                              >
+                                <Trash2 size={11} /> Xóa tất cả
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         <div className="max-h-64 overflow-y-auto divide-y divide-brand-100/50">
@@ -334,32 +522,45 @@ export const Header: React.FC = () => {
                             notifications.map((notif: any) => (
                               <div
                                 key={notif.id}
-                                onClick={() => {
-                                  if (!notif.isRead) markSingleNotificationRead.mutate(notif.id);
-                                  navigate('/account/orders');
-                                  setNotifMenuOpen(false);
-                                }}
-                                className={`px-4 py-3 hover:bg-brand-50/50 transition-colors cursor-pointer text-left ${!notif.isRead ? 'bg-brand-50/20' : ''}`}
+                                className={`px-4 py-3 hover:bg-brand-50/50 transition-colors cursor-pointer text-left relative group ${!notif.isRead ? 'bg-brand-50/20' : ''}`}
                               >
-                                <div className="flex justify-between items-start gap-1">
-                                  <h5 className={`text-[11px] ${!notif.isRead ? 'font-bold text-brand-950' : 'font-semibold text-brand-850'}`}>
-                                    {notif.title}
-                                  </h5>
-                                  {!notif.isRead && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-brand-900 flex-shrink-0 mt-1" />
-                                  )}
+                                <div
+                                  onClick={() => {
+                                    if (!notif.isRead) markSingleNotificationRead.mutate(notif.id);
+                                    navigate('/account/orders');
+                                    setNotifMenuOpen(false);
+                                  }}
+                                >
+                                  <div className="flex justify-between items-start gap-1 pr-6">
+                                    <h5 className={`text-[11px] ${!notif.isRead ? 'font-bold text-brand-950' : 'font-semibold text-brand-850'}`}>
+                                      {notif.title}
+                                    </h5>
+                                    {!notif.isRead && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-brand-900 flex-shrink-0 mt-1" />
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-brand-500 font-light mt-0.5 leading-relaxed pr-6">
+                                    {notif.content}
+                                  </p>
+                                  <span className="text-[8px] text-brand-400 block mt-1 font-light">
+                                    {new Date(notif.createdAt).toLocaleDateString('vi-VN', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
                                 </div>
-                                <p className="text-[10px] text-brand-500 font-light mt-0.5 leading-relaxed">
-                                  {notif.content}
-                                </p>
-                                <span className="text-[8px] text-brand-400 block mt-1 font-light">
-                                  {new Date(notif.createdAt).toLocaleDateString('vi-VN', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
-                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteNotification.mutate(notif.id);
+                                  }}
+                                  className="absolute top-3 right-3 p-1 text-brand-300 hover:text-red-600 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                  title="Xóa thông báo này"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
                               </div>
                             ))
                           )}
@@ -441,18 +642,6 @@ export const Header: React.FC = () => {
                         >
                           Ví voucher
                         </Link>
-                        <button
-                          onClick={() => {
-                            setUserMenuOpen(false);
-                            setNotifMenuOpen(true);
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-xs uppercase tracking-wider text-brand-600 hover:bg-brand-50 hover:text-brand-900 transition-colors flex items-center justify-between cursor-pointer"
-                        >
-                          <span>Thông báo ({unreadNotifCount})</span>
-                          {unreadNotifCount > 0 && (
-                            <span className="w-2 h-2 rounded-full bg-brand-900" />
-                          )}
-                        </button>
                         <button
                           onClick={() => { setUserMenuOpen(false); logout(); }}
                           className="w-full text-left px-4 py-2.5 text-xs uppercase tracking-wider text-red-500 hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer"

@@ -1,6 +1,5 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../config/prisma.js';
+import { BadRequestException, NotFoundException } from '../exceptions/index.js';
 
 export class VoucherService {
   /**
@@ -20,7 +19,7 @@ export class VoucherService {
       where: { code: data.code.toUpperCase() },
     });
     if (existing) {
-      throw new Error('Mã giảm giá này đã tồn tại trên hệ thống.');
+      throw new BadRequestException('Mã giảm giá này đã tồn tại trên hệ thống.');
     }
 
     return await prisma.voucher.create({
@@ -94,28 +93,30 @@ export class VoucherService {
     });
 
     if (!voucher) {
-      throw new Error('Mã giảm giá không tồn tại.');
+      throw new NotFoundException('Mã giảm giá không tồn tại.');
     }
 
     if (voucher.status !== 'ACTIVE') {
-      throw new Error('Mã giảm giá không hoạt động.');
+      throw new BadRequestException('Mã giảm giá không hoạt động.');
     }
 
     const now = new Date();
     if (now < voucher.startDate) {
-      throw new Error('Mã giảm giá chưa đến thời gian áp dụng.');
+      throw new BadRequestException('Mã giảm giá chưa đến thời gian áp dụng.');
     }
 
     if (now > voucher.endDate) {
-      throw new Error('Mã giảm giá đã hết hạn sử dụng.');
+      throw new BadRequestException('Mã giảm giá đã hết hạn sử dụng.');
     }
 
     if (voucher.usageCount >= voucher.usageLimit) {
-      throw new Error('Mã giảm giá đã hết lượt sử dụng.');
+      throw new BadRequestException('Mã giảm giá đã hết lượt sử dụng.');
     }
 
     if (subtotal < voucher.minOrderValue) {
-      throw new Error(`Đơn hàng tối thiểu từ ${voucher.minOrderValue.toLocaleString('vi-VN')}₫ mới được áp dụng.`);
+      throw new BadRequestException(
+        `Đơn hàng tối thiểu từ ${voucher.minOrderValue.toLocaleString('vi-VN')}₫ mới được áp dụng.`
+      );
     }
 
     // Calculate discount amount

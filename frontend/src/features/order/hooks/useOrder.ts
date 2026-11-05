@@ -28,13 +28,24 @@ export const useOrder = () => {
 
   // Mutation: Create Order
   const createOrderMutation = useMutation({
-    mutationFn: ({ addressId, note, voucherCode }: { addressId: string; note?: string; voucherCode?: string }) =>
-      orderApi.createOrder(addressId, note, voucherCode),
-    onSuccess: (response) => {
-      toast.success(response.message || "Đặt hàng thành công! 🎉");
+    mutationFn: (data: {
+      addressId: string;
+      paymentMethod?: 'COD' | 'SEPAY' | 'BLANC_PAY';
+      note?: string;
+      voucherCode?: string;
+      selectedVariantIds?: string[];
+      directItem?: { productVariantId: string; quantity: number };
+      useWalletBalance?: boolean;
+    }) => orderApi.createOrder(data),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cart"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products-infinite"] });
+      queryClient.invalidateQueries({ queryKey: ["products-featured"] });
+      queryClient.invalidateQueries({ queryKey: ["product"] });
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || "Không thể đặt hàng. Vui lòng thử lại.";
@@ -48,7 +59,12 @@ export const useOrder = () => {
     onSuccess: (response) => {
       toast.success(response.message || "Hủy đơn hàng thành công!");
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products-infinite"] });
+      queryClient.invalidateQueries({ queryKey: ["products-featured"] });
+      queryClient.invalidateQueries({ queryKey: ["product"] });
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || "Không thể hủy đơn hàng";
@@ -58,11 +74,19 @@ export const useOrder = () => {
 
   // Mutation: Refund/Return Order
   const refundOrderMutation = useMutation({
-    mutationFn: ({ orderId, returnReason }: { orderId: string; returnReason: string }) =>
-      orderApi.refundOrder(orderId, returnReason),
+    mutationFn: ({
+      orderId,
+      returnReason,
+      bankInfo,
+    }: {
+      orderId: string;
+      returnReason: string;
+      bankInfo?: { bankName?: string; accountNumber?: string; accountName?: string };
+    }) => orderApi.refundOrder(orderId, returnReason, bankInfo),
     onSuccess: (response) => {
       toast.success(response.message || "Yêu cầu trả hàng hoàn tiền đã được gửi và đang chờ duyệt!");
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
@@ -90,6 +114,10 @@ export const useOrder = () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products-infinite"] });
+      queryClient.invalidateQueries({ queryKey: ["products-featured"] });
+      queryClient.invalidateQueries({ queryKey: ["product"] });
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || "Không thể cập nhật trạng thái";
@@ -105,7 +133,12 @@ export const useOrder = () => {
       toast.success(response.message || "Xử lý yêu cầu hoàn trả thành công!");
       queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products-infinite"] });
+      queryClient.invalidateQueries({ queryKey: ["products-featured"] });
+      queryClient.invalidateQueries({ queryKey: ["product"] });
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || "Không thể xử lý yêu cầu hoàn trả";
@@ -138,18 +171,56 @@ export const useOrder = () => {
     },
   });
 
+  // Mutation: Delete all notifications
+  const deleteAllNotificationsMutation = useMutation({
+    mutationFn: () => orderApi.deleteAllNotifications(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success("Đã xóa tất cả thông báo.");
+    },
+  });
+
+  // Mutation: Delete single notification
+  const deleteNotificationMutation = useMutation({
+    mutationFn: (id: string) => orderApi.deleteNotification(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
+  // Mutation: Check SePay Payment
+  const checkPaymentMutation = useMutation({
+    mutationFn: (orderId: string) => orderApi.checkSePayPayment(orderId),
+    onSuccess: (response) => {
+      if (response.data?.isPaid) {
+        toast.success(response.message || "Thanh toán thành công! 🎉");
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      } else {
+        toast.info(response.message || "Chưa phát hiện giao dịch.");
+      }
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || "Kiểm tra thanh toán thất bại.";
+      toast.error(message);
+    },
+  });
+
   return {
     useGetOrders,
     useGetOrderDetails,
     createOrder: createOrderMutation,
     cancelOrder: cancelOrderMutation,
     refundOrder: refundOrderMutation,
+    checkPayment: checkPaymentMutation,
     useAdminGetOrders,
     updateStatus: updateStatusMutation,
     handleReturnRequest: handleReturnRequestMutation,
     useGetNotifications,
     markNotificationsRead: markNotificationsReadMutation,
     markSingleNotificationRead: markSingleNotificationReadMutation,
+    deleteAllNotifications: deleteAllNotificationsMutation,
+    deleteNotification: deleteNotificationMutation,
     isAuthenticated,
   };
 };

@@ -1,40 +1,108 @@
-import nodemailer from 'nodemailer';
+import nodemailer, { Transporter } from 'nodemailer';
+import { getVerificationTemplate, getPasswordResetTemplate } from '../../utils/mail.template.js';
 
-export class EmailService {
-  private static getTransporter() {
-    const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+export interface OrderEmailItem {
+  productName: string;
+  color: string;
+  size: string;
+  quantity: number;
+  price: number;
+}
+
+/**
+ * Interface defining the contract for email services (Dependency Inversion Principle)
+ */
+export interface IEmailService {
+  sendEmail(to: string, subject: string, htmlContent: string): Promise<void>;
+  sendVerificationOtp(to: string, otp: string, fullName: string): Promise<void>;
+  sendPasswordResetOtp(to: string, otp: string, fullName: string): Promise<void>;
+  sendOrderConfirmation(
+    to: string,
+    orderCode: string,
+    items: OrderEmailItem[],
+    totalPrice: number,
+    address: string
+  ): Promise<void>;
+  sendShippingUpdate(to: string, orderCode: string): Promise<void>;
+  sendReturnUpdate(to: string, orderCode: string, isApproved: boolean): Promise<void>;
+}
+
+export class EmailService implements IEmailService {
+  private static instance: EmailService | null = null;
+  private transporter: Transporter | null = null;
+
+  constructor() {
+    this.transporter = this.initTransporter();
+  }
+
+  /**
+   * Singleton accessor for convenient static access while preserving OOP instance architecture
+   */
+  public static getInstance(): EmailService {
+    if (!EmailService.instance) {
+      EmailService.instance = new EmailService();
+    }
+    return EmailService.instance;
+  }
+
+  /**
+   * Encapsulated transporter initialization
+   */
+  private initTransporter(): Transporter | null {
+    // 1. Prefer Gmail App Password configured in NODEMAILER_EMAIL & NODEMAILER_PASSWORD
+    const nodemailerEmail = process.env.NODEMAILER_EMAIL;
+    const nodemailerPass = process.env.NODEMAILER_PASSWORD;
+
+    if (nodemailerEmail && nodemailerPass) {
+      return nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: nodemailerEmail,
+          pass: nodemailerPass,
+        },
+      });
+    }
+
+    // 2. Fallback to generic SMTP configuration if provided
+    const host = process.env.SMTP_HOST;
     const port = parseInt(process.env.SMTP_PORT || '587');
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
 
-    if (!user || !pass) {
-      return null;
+    if (user && pass && host) {
+      return nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: {
+          user,
+          pass,
+        },
+      });
     }
 
-    return nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: {
-        user,
-        pass,
-      },
-    });
+    return null;
   }
 
-  static async sendEmail(to: string, subject: string, htmlContent: string) {
-    const transporter = this.getTransporter();
-    const sender = process.env.SMTP_FROM || '"Seoul Blanc" <noreply@seoulblanc.com>';
+  /**
+   * Core sendEmail implementation
+   */
+  public async sendEmail(to: string, subject: string, htmlContent: string): Promise<void> {
+    const sender =
+      process.env.SMTP_FROM ||
+      `"Seoul Blanc" <${process.env.NODEMAILER_EMAIL || 'noreply@seoulblanc.com'}>`;
 
-    if (!transporter) {
-      console.log(`[MOCK EMAIL SENT TO ${to}]`);
+    if (!this.transporter) {
+      console.log(`\n======================================================`);
+      console.log(`[LOCAL DEV EMAIL FALLBACK] To: ${to}`);
       console.log(`Subject: ${subject}`);
-      console.log(`Content Preview: ${htmlContent.substring(0, 300)}...`);
+      console.log(`Content Preview: ${htmlContent.substring(0, 200)}...`);
+      console.log(`======================================================\n`);
       return;
     }
 
     try {
-      await transporter.sendMail({
+      await this.transporter.sendMail({
         from: sender,
         to,
         subject,
@@ -46,17 +114,46 @@ export class EmailService {
     }
   }
 
-  static async sendOrderConfirmation(to: string, orderCode: string, items: any[], totalPrice: number, address: string) {
-    const itemsHtml = items.map(item => `
+  /**
+   * Send verification OTP email
+   */
+  public async sendVerificationOtp(to: string, otp: string, fullName: string): Promise<void> {
+    const htmlContent = getVerificationTemplate(otp, fullName);
+    await this.sendEmail(to, '[Seoul Blanc] Xác thực tài khoản của bạn', htmlContent);
+  }
+
+  /**
+   * Send password reset OTP email
+   */
+  public async sendPasswordResetOtp(to: string, otp: string, fullName: string): Promise<void> {
+    const htmlContent = getPasswordResetTemplate(otp, fullName);
+    await this.sendEmail(to, '[Seoul Blanc] Yêu cầu đặt lại mật khẩu', htmlContent);
+  }
+
+  /**
+   * Send order confirmation email
+   */
+  public async sendOrderConfirmation(
+    to: string,
+    orderCode: string,
+    items: OrderEmailItem[],
+    totalPrice: number,
+    address: string
+  ): Promise<void> {
+    const itemsHtml = items
+      .map(
+        (item) => `
       <tr style="border-bottom: 1px solid #eee;">
         <td style="padding: 10px 0; font-size: 13px; color: #333;">${item.productName} (Màu: ${item.color}, Size: ${item.size})</td>
         <td style="padding: 10px 0; font-size: 13px; color: #333; text-align: center;">${item.quantity}</td>
         <td style="padding: 10px 0; font-size: 13px; color: #333; text-align: right;">${item.price.toLocaleString('vi-VN')}₫</td>
       </tr>
-    `).join('');
+    `
+      )
+      .join('');
 
     const htmlContent = `
-      <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5dcd3; border-radius: 12px; background-color: #faf8f5;">
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5dcd3; border-radius: 12px; background-color: #faf8f5;">
         <h2 style="text-align: center; color: #2d241e; letter-spacing: 2px; text-transform: uppercase;">SEOUL BLANC</h2>
         <h3 style="text-align: center; color: #4a3e3d; font-weight: normal; margin-top: 0;">XÁC NHẬN ĐƠN HÀNG THÀNH CÔNG</h3>
         <p style="font-size: 14px; color: #555; line-height: 1.6;">
@@ -90,12 +187,19 @@ export class EmailService {
       </div>
     `;
 
-    await this.sendEmail(to, `[Seoul Blanc] Xác nhận đơn hàng thành công #${orderCode}`, htmlContent);
+    await this.sendEmail(
+      to,
+      `[Seoul Blanc] Xác nhận đơn hàng thành công #${orderCode}`,
+      htmlContent
+    );
   }
 
-  static async sendShippingUpdate(to: string, orderCode: string) {
+  /**
+   * Send shipping update email
+   */
+  public async sendShippingUpdate(to: string, orderCode: string): Promise<void> {
     const htmlContent = `
-      <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5dcd3; border-radius: 12px; background-color: #faf8f5;">
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5dcd3; border-radius: 12px; background-color: #faf8f5;">
         <h2 style="text-align: center; color: #2d241e; letter-spacing: 2px; text-transform: uppercase;">SEOUL BLANC</h2>
         <h3 style="text-align: center; color: #2c7a7b; font-weight: normal; margin-top: 0;">ĐƠN HÀNG ĐANG ĐƯỢC GIAO</h3>
         <p style="font-size: 14px; color: #555; line-height: 1.6;">
@@ -113,10 +217,17 @@ export class EmailService {
       </div>
     `;
 
-    await this.sendEmail(to, `[Seoul Blanc] Đơn hàng #${orderCode} đang trên đường giao tới bạn`, htmlContent);
+    await this.sendEmail(
+      to,
+      `[Seoul Blanc] Đơn hàng #${orderCode} đang trên đường giao tới bạn`,
+      htmlContent
+    );
   }
 
-  static async sendReturnUpdate(to: string, orderCode: string, isApproved: boolean) {
+  /**
+   * Send return status update email
+   */
+  public async sendReturnUpdate(to: string, orderCode: string, isApproved: boolean): Promise<void> {
     const statusText = isApproved ? 'ĐÃ ĐƯỢC PHÊ DUYỆT' : 'ĐÃ BỊ TỪ CHỐI';
     const color = isApproved ? '#2f855a' : '#c53030';
     const detailText = isApproved
@@ -124,7 +235,7 @@ export class EmailService {
       : 'Yêu cầu trả hàng hoàn tiền của bạn đã bị từ chối do không đáp ứng đủ điều kiện chính sách đổi trả. Vui lòng liên hệ bộ phận hỗ trợ khách hàng để được giải đáp.';
 
     const htmlContent = `
-      <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5dcd3; border-radius: 12px; background-color: #faf8f5;">
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5dcd3; border-radius: 12px; background-color: #faf8f5;">
         <h2 style="text-align: center; color: #2d241e; letter-spacing: 2px; text-transform: uppercase;">SEOUL BLANC</h2>
         <h3 style="text-align: center; color: ${color}; font-weight: normal; margin-top: 0;">KẾT QUẢ YÊU CẦU TRẢ HÀNG</h3>
         <p style="font-size: 14px; color: #555; line-height: 1.6;">
@@ -141,6 +252,41 @@ export class EmailService {
       </div>
     `;
 
-    await this.sendEmail(to, `[Seoul Blanc] Cập nhật yêu cầu trả hàng đơn hàng #${orderCode}`, htmlContent);
+    await this.sendEmail(
+      to,
+      `[Seoul Blanc] Cập nhật yêu cầu trả hàng đơn hàng #${orderCode}`,
+      htmlContent
+    );
+  }
+
+  // Static backwards-compatibility delegates
+  public static async sendOrderConfirmation(
+    to: string,
+    orderCode: string,
+    items: OrderEmailItem[],
+    totalPrice: number,
+    address: string
+  ): Promise<void> {
+    return EmailService.getInstance().sendOrderConfirmation(
+      to,
+      orderCode,
+      items,
+      totalPrice,
+      address
+    );
+  }
+
+  public static async sendShippingUpdate(to: string, orderCode: string): Promise<void> {
+    return EmailService.getInstance().sendShippingUpdate(to, orderCode);
+  }
+
+  public static async sendReturnUpdate(
+    to: string,
+    orderCode: string,
+    isApproved: boolean
+  ): Promise<void> {
+    return EmailService.getInstance().sendReturnUpdate(to, orderCode, isApproved);
   }
 }
+
+export default EmailService;

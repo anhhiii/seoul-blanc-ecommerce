@@ -60,6 +60,41 @@ export class AuthController {
     });
   });
 
+  // Admin-specific login handler (ensures only ADMIN role can login)
+  adminLogin = asyncHandler(async (req: Request, res: Response) => {
+    const user = await this.authService.login(req.body);
+    if (user.role !== 'ADMIN') {
+      return sendResponse(
+        res,
+        403,
+        'Quyền truy cập bị từ chối: Chỉ tài khoản Quản trị viên mới được phép đăng nhập'
+      );
+    }
+
+    const payload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      emailVerifyAt: user.emailVerifiedAt,
+      status: user.status,
+    } as TokenPayload;
+
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+
+    return sendResponse(res, 200, 'Đăng nhập Quản trị viên thành công', {
+      user: toUserResponseDTO(user),
+      accessToken,
+      refreshToken,
+    });
+  });
+
   // Forgot password request handler
   forgotPassword = asyncHandler(async (req: Request, res: Response) => {
     const result = await this.authService.forgotPassword(req.body);

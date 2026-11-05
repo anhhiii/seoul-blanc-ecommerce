@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { Sparkles, AlertTriangle, ArrowRight, X, Heart, Star } from 'lucide-react';
+import { Sparkles, AlertTriangle, X } from 'lucide-react';
 import { useProduct } from '../features/product/hooks/useProduct.js';
 import { useCategory } from '../features/category/hooks/useCategory.js';
 import { useAuthStore } from '../store/authStore.js';
 import { useWishlist } from '../features/wishlist/hooks/useWishlist.js';
 import { toast } from 'sonner';
+import { ProductCard, ProductFilterSidebar } from '../features/product/components/client/index.js';
 import type { Product } from '../features/product/types/index.js';
 
 const parentCategories = [
@@ -231,7 +232,7 @@ export const ProductsPage: React.FC = () => {
           <div className="mb-8 bg-brand-900 text-white rounded-3xl p-8 sm:p-10 relative overflow-hidden shadow-sm animate-in fade-in duration-300">
             {/* Minimalist Grid Pattern Decoration */}
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-brand-800/40 via-brand-950/20 to-transparent opacity-60"></div>
-            
+
             <div className="relative z-10 max-w-xl">
               <span className="text-[10px] uppercase tracking-[0.25em] text-brand-300 font-bold mb-2 block">
                 BỘ SƯU TẬP ĐẶC BIỆT
@@ -304,8 +305,8 @@ export const ProductsPage: React.FC = () => {
                   key={p.label}
                   onClick={() => handleTypeSelect(p.type)}
                   className={`text-xs sm:text-sm uppercase tracking-widest font-bold pb-2 relative transition-all cursor-pointer ${isActive
-                      ? 'text-brand-900 after:absolute after:bottom-[-13px] after:left-0 after:right-0 after:h-[2px] after:bg-brand-900 scale-102'
-                      : 'text-brand-400 hover:text-brand-600'
+                    ? 'text-brand-900 after:absolute after:bottom-[-13px] after:left-0 after:right-0 after:h-[2px] after:bg-brand-900 scale-102'
+                    : 'text-brand-400 hover:text-brand-600'
                     }`}
                 >
                   {p.label}
@@ -319,8 +320,8 @@ export const ProductsPage: React.FC = () => {
             <button
               onClick={() => handleCategorySelect('')}
               className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all cursor-pointer ${!categoryIdParam
-                  ? 'border-brand-900 bg-brand-900 text-white shadow-xs'
-                  : 'border-brand-200 text-brand-600 bg-brand-50/20 hover:border-brand-400'
+                ? 'border-brand-900 bg-brand-900 text-white shadow-xs'
+                : 'border-brand-200 text-brand-600 bg-brand-50/20 hover:border-brand-400'
                 }`}
             >
               Tất cả
@@ -333,8 +334,8 @@ export const ProductsPage: React.FC = () => {
                   key={cat.id}
                   onClick={() => handleCategorySelect(cat.id)}
                   className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all cursor-pointer ${isSelected
-                      ? 'border-brand-900 bg-brand-900 text-white shadow-xs'
-                      : 'border-brand-200 text-brand-600 bg-white hover:border-brand-400'
+                    ? 'border-brand-900 bg-brand-900 text-white shadow-xs'
+                    : 'border-brand-200 text-brand-600 bg-white hover:border-brand-400'
                     }`}
                 >
                   {cat.name}
@@ -364,75 +365,20 @@ export const ProductsPage: React.FC = () => {
 
         {/* ================= PRODUCTS GRID & SIDEBAR ================= */}
         <div className="flex flex-col lg:flex-row gap-8">
-
           {/* ================= SIDEBAR FILTERS ================= */}
-          <aside className="w-full lg:w-64 flex-shrink-0 space-y-8">
-            {/* Price Filter */}
-            <div className="bg-white p-5 rounded-2xl border border-brand-200/50 shadow-sm">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-brand-900 mb-4">Khoảng giá</h3>
-              <div className="flex items-center gap-2 mb-3">
-                <input
-                  type="number"
-                  placeholder="TỪ"
-                  value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
-                  className="w-full text-xs p-2 border border-brand-200 rounded-lg text-center focus:border-brand-500 outline-none"
-                />
-                <span className="text-brand-400">-</span>
-                <input
-                  type="number"
-                  placeholder="ĐẾN"
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
-                  className="w-full text-xs p-2 border border-brand-200 rounded-lg text-center focus:border-brand-500 outline-none"
-                />
-              </div>
-              <button
-                onClick={handlePriceFilter}
-                className="w-full bg-brand-900 text-white text-[10px] font-bold uppercase tracking-widest py-2.5 rounded-lg hover:bg-brand-800 transition-colors cursor-pointer"
-              >
-                Áp dụng
-              </button>
-            </div>
-
-            {/* Color Filter */}
-            <div className="bg-white p-5 rounded-2xl border border-brand-200/50 shadow-sm">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-brand-900 mb-4">Màu sắc</h3>
-              <div className="flex flex-wrap gap-2">
-                {COLORS_LIST.map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => toggleFilter('colors', color)}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all cursor-pointer border ${activeColors.includes(color)
-                        ? 'border-brand-900 bg-brand-900 text-white shadow-xs'
-                        : 'border-brand-200 bg-brand-50 hover:border-brand-400 text-brand-700'
-                      }`}
-                  >
-                    {color}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Size Filter */}
-            <div className="bg-white p-5 rounded-2xl border border-brand-200/50 shadow-sm">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-brand-900 mb-4">Kích thước</h3>
-              <div className="flex flex-wrap gap-2">
-                {SIZES_LIST.map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => toggleFilter('sizes', size)}
-                    className={`w-10 h-10 rounded-lg text-xs font-semibold transition-all cursor-pointer border flex items-center justify-center ${activeSizes.includes(size)
-                        ? 'border-brand-900 bg-brand-900 text-white shadow-xs'
-                        : 'border-brand-200 bg-brand-50 hover:border-brand-400 text-brand-700'
-                      }`}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </aside>
+          <ProductFilterSidebar
+            minPrice={minPrice}
+            setMinPrice={setMinPrice}
+            maxPrice={maxPrice}
+            setMaxPrice={setMaxPrice}
+            onApplyPriceFilter={handlePriceFilter}
+            activeColors={activeColors}
+            onToggleColor={(c) => toggleFilter('colors', c)}
+            activeSizes={activeSizes}
+            onToggleSize={(s) => toggleFilter('sizes', s)}
+            colorsList={COLORS_LIST}
+            sizesList={SIZES_LIST}
+          />
 
           {/* ================= MAIN PRODUCTS GRID ================= */}
           <main className="flex-1">
@@ -472,99 +418,12 @@ export const ProductsPage: React.FC = () => {
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                   {products.map((prod: Product) => (
-                    <div
+                    <ProductCard
                       key={prod.id}
-                      className="group flex flex-col bg-white border border-brand-200/40 rounded-2xl overflow-hidden hover:shadow-md transition-all duration-300 relative"
-                    >
-                      {/* Thumbnail Image */}
-                      <Link to={`/products/${prod.slug}`} className="aspect-[3/4] relative overflow-hidden bg-brand-50 block">
-                        <img
-                          src={prod.thumbnail}
-                          alt={prod.name}
-                          className="w-full h-full object-cover object-center group-hover:scale-103 transition-transform duration-500"
-                        />
-                        {prod.discountPrice && (
-                          <span className="absolute top-3 left-3 bg-red-500 text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded">
-                            SALE
-                          </span>
-                        )}
-                      </Link>
-
-                      {/* Toggle Wishlist Button */}
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleToggleWishlist(prod.id);
-                        }}
-                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-xs border border-brand-200/45 flex items-center justify-center shadow-xs z-10 transition-all duration-200 cursor-pointer hover:bg-white"
-                        title={isFavorited(prod.id) ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
-                      >
-                        <Heart
-                          size={14}
-                          className={`transition-colors duration-200 ${
-                            isFavorited(prod.id)
-                              ? 'fill-red-500 text-red-500'
-                              : 'text-brand-600 hover:text-red-500'
-                          }`}
-                        />
-                      </button>
-
-                      {/* Info & Details */}
-                      <div className="p-4 flex-1 flex flex-col justify-between">
-                        <div>
-                          <span className="text-[9px] uppercase tracking-wider text-brand-400 font-medium">
-                            {prod.categoryName || 'Seoul Blanc'}
-                          </span>
-                          <Link to={`/products/${prod.slug}`}>
-                            <h4 className="text-xs sm:text-sm text-brand-900 font-light mt-1 mb-2 hover:text-brand-600 transition-colors line-clamp-2 min-h-[32px] sm:min-h-[40px]">
-                              {prod.name}
-                            </h4>
-                          </Link>
-                        </div>
-
-                        {/* Star Rating */}
-                        {prod.ratingAverage > 0 && (
-                          <div className="flex items-center gap-1 mb-2">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                size={10}
-                                className={`${
-                                  star <= Math.round(prod.ratingAverage)
-                                    ? 'fill-amber-400 text-amber-400'
-                                    : 'fill-brand-100 text-brand-200'
-                                }`}
-                              />
-                            ))}
-                            <span className="text-[9px] text-brand-400 ml-1">
-                              ({prod.totalReviews})
-                            </span>
-                          </div>
-                        )}
-
-                        <div>
-                          <div className="flex items-baseline gap-2 mb-3.5">
-                            <span className="text-sm font-semibold text-brand-900">
-                              {(prod.discountPrice || prod.price).toLocaleString('vi-VN')}₫
-                            </span>
-                            {prod.discountPrice && (
-                              <span className="text-[11px] text-brand-400 line-through">
-                                {prod.price.toLocaleString('vi-VN')}₫
-                              </span>
-                            )}
-                          </div>
-
-                          <Link
-                            to={`/products/${prod.slug}`}
-                            className="w-full py-2 bg-brand-900 hover:bg-brand-800 text-white text-[10px] uppercase tracking-widest font-semibold rounded-lg transition-colors flex items-center justify-center gap-1 group/btn"
-                          >
-                            Xem chi tiết
-                            <ArrowRight size={10} className="group-hover/btn:translate-x-0.5 transition-transform" />
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
+                      product={prod}
+                      isFavorited={isFavorited(prod.id)}
+                      onToggleWishlist={handleToggleWishlist}
+                    />
                   ))}
                 </div>
 

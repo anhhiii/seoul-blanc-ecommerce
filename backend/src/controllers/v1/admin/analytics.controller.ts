@@ -1,10 +1,8 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../config/prisma.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 import { sendResponse } from '../../../utils/sendResponse.js';
 import { AuthenticatedRequest } from '../../../middlewares/auth.middleware.js';
-
-const prisma = new PrismaClient();
 
 export class AdminAnalyticsController {
   /**
@@ -19,9 +17,9 @@ export class AdminAnalyticsController {
     // Calculate total revenue: sum of totalPrice for CONFIRMED, SHIPPING, DELIVERED orders
     const paidOrders = await prisma.order.findMany({
       where: {
-        orderStatus: { in: ['CONFIRMED', 'SHIPPING', 'DELIVERED'] }
+        orderStatus: { in: ['CONFIRMED', 'SHIPPING', 'DELIVERED'] },
       },
-      select: { totalPrice: true }
+      select: { totalPrice: true },
     });
     const totalRevenue = paidOrders.reduce((sum, order) => sum + order.totalPrice, 0);
 
@@ -34,16 +32,17 @@ export class AdminAnalyticsController {
     const ordersLast6Months = await prisma.order.findMany({
       where: {
         createdAt: { gte: sixMonthsAgo },
-        orderStatus: { not: 'CANCELLED' }
+        orderStatus: { not: 'CANCELLED' },
       },
       select: {
         totalPrice: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
     });
 
     // Create 6 months array structure
-    const monthlyStats: { [key: string]: { month: string; revenue: number; ordersCount: number } } = {};
+    const monthlyStats: { [key: string]: { month: string; revenue: number; ordersCount: number } } =
+      {};
     for (let i = 0; i < 6; i++) {
       const d = new Date();
       d.setMonth(d.getMonth() - (5 - i));
@@ -71,8 +70,8 @@ export class AdminAnalyticsController {
         name: true,
         thumbnail: true,
         price: true,
-        sold: true
-      }
+        sold: true,
+      },
     });
 
     // 4. Low stock products (warning list: variants with stock < 5)
@@ -83,28 +82,28 @@ export class AdminAnalyticsController {
         product: {
           select: {
             name: true,
-            thumbnail: true
-          }
-        }
-      }
+            thumbnail: true,
+          },
+        },
+      },
     });
 
-    const lowStockAlerts = lowStockVariants.map(v => ({
+    const lowStockAlerts = lowStockVariants.map((v) => ({
       variantId: v.id,
       productName: v.product.name,
       thumbnail: v.product.thumbnail,
       color: v.color,
       size: v.size,
-      stock: v.stock
+      stock: v.stock,
     }));
 
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-    const topSellingProducts = topProducts.map(p => ({
+    const topSellingProducts = topProducts.map((p) => ({
       id: p.id,
       name: p.name,
       thumbnail: p.thumbnail,
       soldQuantity: p.sold || 0,
-      revenue: (p.sold || 0) * p.price
+      revenue: (p.sold || 0) * p.price,
     }));
 
     return sendResponse(res, 200, 'Lấy dữ liệu thống kê thành công', {
@@ -113,11 +112,11 @@ export class AdminAnalyticsController {
         totalOrders,
         averageOrderValue,
         totalUsers,
-        totalProducts
+        totalProducts,
       },
       monthlyRevenue: chartData,
       topSellingProducts,
-      lowStockVariants: lowStockAlerts
+      lowStockVariants: lowStockAlerts,
     });
   });
 }

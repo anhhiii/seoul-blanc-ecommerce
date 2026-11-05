@@ -1,14 +1,28 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Camera, Key, Check } from 'lucide-react';
+import { User, Camera, Key, Check, Wallet, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProfile } from '../../features/profile/hooks/useProfile.js';
 import { useAuthStore } from '../../store/authStore.js';
+import { useWallet } from '../../features/wallet/hooks/useWallet.js';
 
 export const ProfilePage: React.FC = () => {
   const { user } = useAuthStore();
   const { updateProfile, updateAvatar, changePassword, uploadAvatar } = useProfile();
+  const { useGetWallet } = useWallet();
+  const { data: wallet } = useGetWallet();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [hideBalance, setHideBalance] = useState<boolean>(() => {
+    return localStorage.getItem('blanc_pay_hide_balance') === 'true';
+  });
+
+  const toggleHideBalance = () => {
+    setHideBalance((prev) => {
+      const next = !prev;
+      localStorage.setItem('blanc_pay_hide_balance', String(next));
+      return next;
+    });
+  };
 
   // Split fullName on mount or user change
   const splitName = (fullName: string) => {
@@ -141,16 +155,108 @@ export const ProfilePage: React.FC = () => {
   };
 
   return (
-    <div className="bg-white border border-brand-200/40 rounded-3xl p-6 sm:p-8 shadow-xs">
+    <div className="bg-white border border-brand-200/50 rounded-3xl p-6 sm:p-10 shadow-sm luxury-card-glow space-y-8">
       
       {/* Title */}
-      <div className="border-b border-brand-100 pb-5 mb-8">
-        <h2 className="text-xl font-light text-brand-900 tracking-wide">
-          Thông tin tài khoản
-        </h2>
-        <p className="text-xs text-brand-400 font-light mt-1">
-          Xem và cập nhật thông tin cá nhân của bạn
-        </p>
+      <div className="border-b border-brand-100 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span className="text-[10px] uppercase font-bold tracking-[0.25em] text-brand-400 block mb-1">
+            Hồ sơ thành viên
+          </span>
+          <h2 className="font-editorial text-2xl sm:text-3xl font-normal text-brand-950 tracking-wide">
+            Thông tin tài khoản
+          </h2>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-brand-500 font-light">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+          <span>Tài khoản chính thức</span>
+        </div>
+      </div>
+
+      {/* Wallet Balance Card - Haute Couture VIP Card Aesthetic */}
+      <div className="luxury-card-dark text-white rounded-3xl p-6 sm:p-8 relative overflow-hidden transition-all duration-300 hover:shadow-2xl">
+        {/* Subtle decorative glow & pattern */}
+        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-48 h-48 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute left-1/3 bottom-0 w-32 h-32 bg-gold-400/5 rounded-full blur-xl pointer-events-none" />
+
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 relative z-10">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-gold-400">
+                <Wallet size={15} />
+              </div>
+              <span className="text-[11px] uppercase tracking-[0.2em] font-medium text-brand-300">
+                Seoul Blanc Pay · Số dư hoàn tiền
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              <div className="font-editorial text-3xl sm:text-4xl lg:text-5xl font-normal tracking-tight text-white flex items-center gap-3">
+                {hideBalance ? (
+                  <span className="tracking-widest">•••••••• <span className="text-xl sm:text-2xl font-light text-brand-300">₫</span></span>
+                ) : (
+                  <span className="flex items-baseline gap-1">
+                    {(wallet?.balance || 0).toLocaleString('vi-VN')}
+                    <span className="text-xl sm:text-2xl font-light text-brand-300">₫</span>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={toggleHideBalance}
+                  className="p-1.5 rounded-full hover:bg-white/10 text-brand-300 hover:text-white transition-colors cursor-pointer"
+                  title={hideBalance ? 'Hiển thị số dư' : 'Ẩn số dư'}
+                >
+                  {hideBalance ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              <p className="text-[11px] text-brand-350 font-light max-w-md leading-relaxed">
+                Số dư hoàn tiền được tích lũy từ các đơn hàng hủy hoặc đổi trả. Bạn có thể sử dụng trực tiếp để thanh toán ngay cho mọi đơn hàng mới.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex sm:flex-col items-end justify-between sm:justify-start gap-3 flex-shrink-0">
+            <span className="text-[9px] uppercase font-bold tracking-[0.25em] px-3.5 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/15 text-gold-300">
+              VIP Member
+            </span>
+            <span className="font-editorial text-xs italic tracking-widest text-brand-400 hidden sm:block">
+              Seoul Blanc Atelier
+            </span>
+          </div>
+        </div>
+
+        {/* Recent Refund Transactions if any */}
+        {wallet?.transactions && wallet.transactions.length > 0 && (
+          <div className="mt-6 pt-5 border-t border-white/10 space-y-2.5">
+            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-brand-300">
+              <span>Lịch sử hoàn tiền gần nhất</span>
+              <span className="text-brand-400 font-normal lowercase">{wallet.transactions.length} giao dịch</span>
+            </div>
+            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+              {wallet.transactions.slice(0, 5).map((tx) => (
+                <div
+                  key={tx.id}
+                  className="flex items-center justify-between text-xs bg-white/5 hover:bg-white/10 transition-colors p-2.5 rounded-xl border border-white/5"
+                >
+                  <div className="text-[11px] space-y-0.5">
+                    <span className="font-medium text-white block">{tx.description}</span>
+                    <span className="text-[9px] text-brand-400">
+                      {new Date(tx.createdAt).toLocaleDateString('vi-VN', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                  <span className={`font-bold text-xs ${tx.amount >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {tx.amount >= 0 ? `+${tx.amount.toLocaleString('vi-VN')}₫` : `${tx.amount.toLocaleString('vi-VN')}₫`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Avatar Section */}

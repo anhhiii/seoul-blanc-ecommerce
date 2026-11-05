@@ -1,10 +1,8 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../config/prisma.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 import { sendResponse } from '../../../utils/sendResponse.js';
 import { AuthenticatedRequest } from '../../../middlewares/auth.middleware.js';
-
-const prisma = new PrismaClient();
 
 export class AdminUserController {
   /**
@@ -22,8 +20,8 @@ export class AdminUserController {
         gender: true,
         role: true,
         status: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
     });
     return sendResponse(res, 200, 'Lấy danh sách người dùng thành công', { users });
   });
@@ -46,7 +44,7 @@ export class AdminUserController {
     const user = await prisma.user.update({
       where: { id: id as string },
       data: { status },
-      select: { id: true, fullName: true, status: true }
+      select: { id: true, fullName: true, status: true },
     });
 
     return sendResponse(res, 200, 'Cập nhật trạng thái người dùng thành công', { user });
@@ -70,7 +68,7 @@ export class AdminUserController {
     const user = await prisma.user.update({
       where: { id: id as string },
       data: { role },
-      select: { id: true, fullName: true, role: true }
+      select: { id: true, fullName: true, role: true },
     });
 
     return sendResponse(res, 200, 'Cập nhật vai trò người dùng thành công', { user });

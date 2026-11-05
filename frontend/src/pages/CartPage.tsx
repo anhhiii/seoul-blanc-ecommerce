@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Trash2, Minus, Plus, ArrowLeft, ShieldCheck, Truck, RefreshCw, Check } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCart } from '../features/cart/hooks/useCart.js';
+import { CartItemRow, CartSummary, CartEmptyState } from '../features/cart/components/index.js';
+import { useSettings } from '../shared/hooks/useSettings.js';
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -43,9 +45,13 @@ export const CartPage: React.FC = () => {
   };
 
   // ── Derived totals from selected items ───────────────────────────────────────
+  const { settings } = useSettings();
   const selectedItems = items.filter((i) => selectedIds.has(i.productVariantId));
   const selectedSubtotal = selectedItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const shippingFee = selectedSubtotal >= 1000000 || selectedSubtotal === 0 ? 0 : 30000;
+  const shippingFee =
+    selectedSubtotal >= settings.freeShippingThreshold || selectedSubtotal === 0
+      ? 0
+      : settings.standardShippingFee;
   const finalTotal = selectedSubtotal + shippingFee;
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -108,7 +114,6 @@ export const CartPage: React.FC = () => {
   return (
     <div className="bg-[#FAF8F5] min-h-screen py-12">
       <div className="max-w-7xl mx-auto px-6 sm:px-8">
-
         {/* Title */}
         <div className="mb-10 text-center sm:text-left">
           <h1 className="text-2xl sm:text-3xl font-light tracking-wide text-brand-900 uppercase">
@@ -120,34 +125,14 @@ export const CartPage: React.FC = () => {
         </div>
 
         {items.length === 0 ? (
-          /* Empty State */
-          <div className="bg-white border border-brand-200/20 rounded-3xl p-12 text-center max-w-lg mx-auto shadow-xs">
-            <div className="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <ShoppingBag className="text-brand-400" size={26} />
-            </div>
-            <h2 className="text-base font-light text-brand-900 tracking-wide mb-2">Giỏ hàng trống</h2>
-            <p className="text-xs text-brand-500 font-light mb-8 leading-relaxed">
-              Bạn chưa có sản phẩm nào trong giỏ hàng. Hãy khám phá bộ sưu tập thời trang của Seoul Blanc và lựa chọn món đồ yêu thích của mình.
-            </p>
-            <Link
-              to="/products"
-              className="inline-flex items-center gap-2 px-6 py-3.5 bg-brand-900 hover:bg-brand-850 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-all shadow-sm"
-            >
-              <ArrowLeft size={12} />
-              Tiếp tục mua sắm
-            </Link>
-          </div>
+          <CartEmptyState />
         ) : (
-          /* Cart Content Layout */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-
             {/* Left side: Cart Items List */}
             <div className="lg:col-span-8 space-y-4">
               <div className="bg-white rounded-3xl border border-brand-200/25 overflow-hidden shadow-xs">
-
-                {/* Header row with Select-All */}
+                {/* Header row with Select-All (Desktop) */}
                 <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 bg-brand-50/50 border-b border-brand-100 text-[10px] font-bold text-brand-800 uppercase tracking-wider">
-                  {/* Checkbox select all */}
                   <div className="col-span-1 flex items-center justify-center">
                     <button
                       onClick={toggleAll}
@@ -197,137 +182,18 @@ export const CartPage: React.FC = () => {
 
                 {/* Items loop */}
                 <div className="divide-y divide-brand-100">
-                  {items.map((item) => {
-                    const product = item.variant?.product;
-                    const variant = item.variant;
-                    if (!product || !variant) return null;
-
-                    const isSelected = selectedIds.has(item.productVariantId);
-
-                    return (
-                      <div
-                        key={item.productVariantId}
-                        className={`grid grid-cols-1 sm:grid-cols-12 gap-4 items-center p-5 sm:p-6 transition-colors ${
-                          isSelected ? 'bg-white hover:bg-brand-50/10' : 'bg-brand-50/30 hover:bg-brand-50/50 opacity-70'
-                        }`}
-                      >
-                        {/* Checkbox — desktop (col 1) */}
-                        <div className="hidden sm:flex col-span-1 items-center justify-center">
-                          <button
-                            onClick={() => toggleItem(item.productVariantId)}
-                            className={`w-4.5 h-4.5 rounded border-2 flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
-                              isSelected
-                                ? 'bg-brand-900 border-brand-900'
-                                : 'bg-white border-brand-300 hover:border-brand-600'
-                            }`}
-                          >
-                            {isSelected && <Check size={10} strokeWidth={3} className="text-white" />}
-                          </button>
-                        </div>
-
-                        {/* Info details — desktop col-span-5, mobile full */}
-                        <div className="col-span-1 sm:col-span-5 flex gap-3">
-                          {/* Checkbox mobile (inline with image) */}
-                          <button
-                            onClick={() => toggleItem(item.productVariantId)}
-                            className={`sm:hidden w-5 h-5 mt-1 rounded border-2 flex items-center justify-center transition-all cursor-pointer flex-shrink-0 self-start ${
-                              isSelected
-                                ? 'bg-brand-900 border-brand-900'
-                                : 'bg-white border-brand-300'
-                            }`}
-                          >
-                            {isSelected && <Check size={11} strokeWidth={3} className="text-white" />}
-                          </button>
-
-                          <Link
-                            to={`/products/${product.slug || product.id}`}
-                            className="w-20 aspect-[3/4] rounded-xl overflow-hidden bg-brand-50 border border-brand-200/40 flex-shrink-0"
-                          >
-                            <img
-                              src={product.thumbnail}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </Link>
-                          <div className="flex flex-col justify-center min-w-0">
-                            <Link
-                              to={`/products/${product.slug || product.id}`}
-                              className="text-sm font-light text-brand-900 hover:text-brand-650 transition-colors line-clamp-2 leading-snug"
-                            >
-                              {product.name}
-                            </Link>
-
-                            {/* Variant badges */}
-                            <div className="flex flex-wrap gap-1.5 mt-1.5">
-                              <span className="text-[9px] uppercase tracking-wider text-brand-500 bg-brand-50 border border-brand-200/50 px-2 py-0.5 rounded-md font-semibold">
-                                Size: {variant.size}
-                              </span>
-                              <span className="text-[9px] uppercase tracking-wider text-brand-500 bg-brand-50 border border-brand-200/50 px-2 py-0.5 rounded-md font-semibold">
-                                Màu: {variant.color}
-                              </span>
-                            </div>
-
-                            {/* Remove (mobile) */}
-                            <button
-                              onClick={() => handleRemoveItem(item.productVariantId)}
-                              className="sm:hidden text-left text-red-500 hover:text-red-700 text-[10px] uppercase font-bold tracking-widest flex items-center gap-1 mt-2.5 transition-colors cursor-pointer"
-                            >
-                              <Trash2 size={11} />
-                              Xóa
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Unit price */}
-                        <div className="col-span-1 sm:col-span-2 text-left sm:text-center flex sm:block justify-between items-center sm:border-0 border-t border-brand-100/55 pt-2 sm:pt-0">
-                          <span className="sm:hidden text-[10px] font-bold text-brand-800 uppercase">Đơn giá:</span>
-                          <span className="text-xs font-semibold text-brand-900">
-                            {item.price.toLocaleString('vi-VN')}₫
-                          </span>
-                        </div>
-
-                        {/* Quantity Selector */}
-                        <div className="col-span-1 sm:col-span-2 flex sm:justify-center items-center justify-between sm:border-0 border-t border-brand-100/55 pt-2 sm:pt-0">
-                          <span className="sm:hidden text-[10px] font-bold text-brand-800 uppercase">Số lượng:</span>
-                          <div className="flex items-center border border-brand-200 rounded-lg overflow-hidden h-8 bg-white">
-                            <button
-                              onClick={() => handleUpdateQuantity(item.productVariantId, item.quantity, -1, variant.stock)}
-                              disabled={item.quantity <= 1 || updateCartItem.isPending}
-                              className="w-8 h-full flex items-center justify-center hover:bg-brand-50 text-brand-600 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-                            >
-                              <Minus size={10} />
-                            </button>
-                            <span className="w-8 text-center text-xs font-bold text-brand-900">{item.quantity}</span>
-                            <button
-                              onClick={() => handleUpdateQuantity(item.productVariantId, item.quantity, 1, variant.stock)}
-                              disabled={item.quantity >= variant.stock || updateCartItem.isPending}
-                              className="w-8 h-full flex items-center justify-center hover:bg-brand-50 text-brand-600 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-                            >
-                              <Plus size={10} />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Line total + delete */}
-                        <div className="col-span-1 sm:col-span-2 text-right flex sm:block justify-between items-center sm:border-0 border-t border-brand-100/55 pt-2 sm:pt-0">
-                          <span className="sm:hidden text-[10px] font-bold text-brand-800 uppercase">Tổng:</span>
-                          <div className="flex sm:flex-col items-center sm:items-end gap-3 justify-end w-full">
-                            <span className="text-xs font-bold text-brand-900">
-                              {(item.price * item.quantity).toLocaleString('vi-VN')}₫
-                            </span>
-                            <button
-                              onClick={() => handleRemoveItem(item.productVariantId)}
-                              disabled={removeFromCart.isPending}
-                              className="hidden sm:inline-flex text-brand-400 hover:text-red-500 transition-colors p-1 cursor-pointer disabled:opacity-40"
-                              title="Xóa sản phẩm"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {items.map((item) => (
+                    <CartItemRow
+                      key={item.productVariantId}
+                      item={item}
+                      isSelected={selectedIds.has(item.productVariantId)}
+                      onToggleSelect={toggleItem}
+                      onUpdateQuantity={handleUpdateQuantity}
+                      onRemoveItem={handleRemoveItem}
+                      isUpdating={updateCartItem.isPending}
+                      isRemoving={removeFromCart.isPending}
+                    />
+                  ))}
                 </div>
               </div>
 
@@ -352,96 +218,21 @@ export const CartPage: React.FC = () => {
             </div>
 
             {/* Right side: Cart Summary */}
-            <div className="lg:col-span-4 space-y-6">
-
-              {/* Order Summary box */}
-              <div className="bg-white border border-brand-200/25 rounded-3xl p-6 shadow-xs space-y-6">
-                <h3 className="text-xs font-bold text-brand-900 uppercase tracking-widest pb-3 border-b border-brand-100">
-                  Tóm tắt đơn hàng
-                </h3>
-
-                {/* Selected count indicator */}
-                <div className="flex items-center justify-between text-[10px] text-brand-500 font-light bg-brand-50/60 rounded-xl px-3 py-2.5 border border-brand-100/60">
-                  <span>Sản phẩm đã chọn</span>
-                  <span className="font-bold text-brand-800">
-                    {selectedIds.size} / {items.length}
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex justify-between text-xs text-brand-600 font-light">
-                    <span>Tạm tính</span>
-                    <span className="font-semibold text-brand-900">{selectedSubtotal.toLocaleString('vi-VN')}₫</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-brand-600 font-light">
-                    <span>Phí vận chuyển</span>
-                    <span className="font-semibold text-brand-900">
-                      {shippingFee === 0 ? 'Miễn phí' : `${shippingFee.toLocaleString('vi-VN')}₫`}
-                    </span>
-                  </div>
-
-                  {shippingFee > 0 && selectedSubtotal > 0 && (
-                    <div className="text-[10px] text-brand-500 font-light bg-brand-50/50 p-3 border border-brand-100 rounded-xl leading-normal flex items-start gap-2">
-                      <Truck size={14} className="text-brand-500 flex-shrink-0 mt-0.5" />
-                      <span>Mua thêm <strong>{(1000000 - selectedSubtotal).toLocaleString('vi-VN')}₫</strong> để được miễn phí vận chuyển.</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="border-t border-brand-150 pt-4 flex justify-between items-baseline">
-                  <span className="text-sm font-light text-brand-900">Tổng cộng</span>
-                  <span className="text-xl font-bold text-brand-900">
-                    {finalTotal.toLocaleString('vi-VN')}₫
-                  </span>
-                </div>
-
-                <button
-                  disabled={selectedIds.size === 0}
-                  onClick={() => {
-                    navigate('/checkout', { state: { selectedVariantIds: Array.from(selectedIds) } });
-                  }}
-                  className="w-full py-4 bg-brand-900 hover:bg-brand-850 disabled:opacity-40 disabled:pointer-events-none text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <ShieldCheck size={16} />
-                  Tiến hành thanh toán
-                  {selectedIds.size > 0 && (
-                    <span className="ml-1 text-[9px] font-semibold bg-white/20 rounded-full px-1.5 py-0.5">
-                      {selectedIds.size}
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              {/* Trust Badges */}
-              <div className="bg-brand-50/50 border border-brand-200/20 p-5 rounded-2xl space-y-4 text-xs font-light text-brand-600">
-                <div className="flex gap-3">
-                  <ShieldCheck size={16} className="text-brand-500 mt-0.5" />
-                  <div>
-                    <strong className="font-semibold text-brand-900 block mb-0.5">Thanh toán bảo mật</strong>
-                    Mọi giao dịch đều được mã hóa bảo mật tối đa.
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <Truck size={16} className="text-brand-500 mt-0.5" />
-                  <div>
-                    <strong className="font-semibold text-brand-900 block mb-0.5">Giao hàng nhanh chóng</strong>
-                    Nhận hàng từ 2 - 4 ngày làm việc trên toàn quốc.
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <RefreshCw size={16} className="text-brand-500 mt-0.5" />
-                  <div>
-                    <strong className="font-semibold text-brand-900 block mb-0.5">Đổi trả dễ dàng</strong>
-                    Đổi trả sản phẩm trong vòng 7 ngày kể từ ngày nhận hàng.
-                  </div>
-                </div>
-              </div>
-
+            <div className="lg:col-span-4">
+              <CartSummary
+                selectedCount={selectedIds.size}
+                totalItemsCount={items.length}
+                subtotal={selectedSubtotal}
+                shippingFee={shippingFee}
+                finalTotal={finalTotal}
+                freeShippingThreshold={settings.freeShippingThreshold}
+                onCheckout={() => {
+                  navigate('/checkout', { state: { selectedVariantIds: Array.from(selectedIds) } });
+                }}
+              />
             </div>
-
           </div>
         )}
-
       </div>
     </div>
   );

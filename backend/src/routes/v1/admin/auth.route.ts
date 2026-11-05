@@ -12,7 +12,7 @@ const authService = new AuthService();
 const authController = new AuthController(authService);
 
 // Admin-specific routes definition (guarded with verifyToken and isAdmin)
-router.post('/login', validate(loginSchema), authController.login);
+router.post('/login', validate(loginSchema), authController.adminLogin);
 router.post('/logout', verifyToken, isAdmin, authController.logout);
 
 export default router;

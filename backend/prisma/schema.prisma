@@ -84,6 +84,7 @@ enum PaymentMethod {
   COD
   STRIPE
   VNPAY
+  SEPAY
 }
 
 // ==========================================
